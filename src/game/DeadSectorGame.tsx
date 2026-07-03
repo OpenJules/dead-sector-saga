@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
+import { audio } from "./AudioEngine";
+
 
 // ---------- Types ----------
 type Vec = { x: number; y: number };
@@ -16,9 +18,10 @@ type Weapon = {
 type Bullet = { pos: Vec; vel: Vec; damage: number; life: number; friendly: boolean; color: string; radius: number };
 type Zombie = { pos: Vec; hp: number; maxHp: number; speed: number; damage: number; radius: number; kind: "walker" | "runner" | "brute" };
 type Station = { pos: Vec; weapon: Weapon; label: string };
-type QuestStep = { id: string; text: string; type: "kill" | "reach" | "buy" | "interact"; target?: number; progress?: number; location?: Vec; done: boolean };
-type SideQuest = { id: string; title: string; steps: QuestStep[]; reward: number; done: boolean; accepted: boolean };
-type NPC = { pos: Vec; name: string; sideQuestId?: string; color: string; radius: number };
+type QuestStep = { id: string; text: string; type: "kill" | "reach" | "buy" | "interact" | "shoot"; target?: number; progress?: number; location?: Vec; done: boolean; color?: string };
+type SideQuest = { id: string; title: string; steps: QuestStep[]; reward: string; done: boolean; accepted: boolean };
+type WorldObject = { pos: Vec; color: string; radius: number; questId: string; stepId: string; active: boolean; locked: boolean };
+type NPC = { pos: Vec; name: string; color: string; radius: number };
 type Phase = 0 | 1 | 2 | 3;
 type Boss = {
   pos: Vec;
@@ -58,16 +61,12 @@ const MAIN_QUEST: QuestStep[] = [
 
 const SIDE_QUESTS: SideQuest[] = [
   {
-    id: "sq1", title: "Ammo Cache", accepted: false, done: false, reward: 300,
-    steps: [{ id: "s1-1", text: "Kill 8 runners", type: "kill", target: 8, progress: 0, done: false }],
-  },
-  {
-    id: "sq2", title: "Scout the Ruins", accepted: false, done: false, reward: 500,
-    steps: [{ id: "s2-1", text: "Reach the ruins (NE)", type: "reach", location: { x: 2100, y: 350 }, done: false }],
-  },
-  {
-    id: "sq3", title: "Brute Force", accepted: false, done: false, reward: 700,
-    steps: [{ id: "s3-1", text: "Kill 3 brutes", type: "kill", target: 3, progress: 0, done: false }],
+    id: "sq_lights", title: "The RGB Sequence", accepted: true, done: false, reward: "MAX_RESOURCES",
+    steps: [
+      { id: "l1", text: "Shoot the Red Light", type: "shoot", color: "#ff0000", location: { x: 400, y: 400 }, done: false },
+      { id: "l2", text: "Shoot the Green Light", type: "shoot", color: "#00ff00", location: { x: 2000, y: 400 }, done: false },
+      { id: "l3", text: "Shoot the Blue Light", type: "shoot", color: "#0000ff", location: { x: 1200, y: 1400 }, done: false },
+    ],
   },
 ];
 
@@ -137,6 +136,14 @@ export default function DeadSectorGame() {
     let last = performance.now();
     let uiCounter = 0;
 
+    audio.resume().then(() => {
+      if (stateRef.current.inArena) {
+        audio.playMusic("boss");
+      } else {
+        audio.playMusic("main");
+      }
+    });
+
     const loop = (t: number) => {
       const dt = Math.min(0.05, (t - last) / 1000);
       last = t;
@@ -163,7 +170,12 @@ export default function DeadSectorGame() {
     };
     resize();
     window.addEventListener("resize", resize);
-    return () => window.removeEventListener("resize", resize);
+    return () => {
+      window.removeEventListener("resize", resize);
+      if (screen !== "playing") {
+        audio.stopMusic();
+      }
+    };
   }, [screen]);
 
   const s = stateRef.current;
@@ -185,56 +197,63 @@ export default function DeadSectorGame() {
 
       {screen === "playing" && (
         <>
-          {/* HUD */}
-          <div className="pointer-events-none absolute inset-0 p-4 font-mono text-sm">
-            <div className="flex items-start justify-between gap-4">
-              {/* Left: Health / Weapon / Cash */}
-              <div className="pointer-events-auto rounded-md border border-border bg-card/80 p-3 backdrop-blur">
-                <div className="mb-2 flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground">HP</span>
-                  <div className="h-3 w-40 overflow-hidden rounded-sm border border-border bg-background">
-                    <div className="h-full bg-accent transition-all" style={{ width: `${(s.player.hp / s.player.maxHp) * 100}%` }} />
-                  </div>
-                  <span className="text-xs">{Math.max(0, Math.ceil(s.player.hp))}/{s.player.maxHp}</span>
-                </div>
-                <div className="text-xs text-muted-foreground">CREDITS: <span className="text-hud">${s.player.cash}</span></div>
-                <div className="mt-1 text-xs">
-                  <span className="text-muted-foreground">WEAPON:</span>{" "}
-                  <span style={{ color: activeWeapon.color }}>{activeWeapon.name}</span>
-                </div>
-                <div className="mt-1 flex gap-1">
-                  {s.player.inventory.map((w, i) => (
-                    <span key={w.id} className={`rounded-sm border px-1.5 py-0.5 text-[10px] ${i === s.player.weaponIndex ? "border-primary text-primary" : "border-border text-muted-foreground"}`}>
-                      {i + 1} {w.name.split(" ")[0]}
-                    </span>
-                  ))}
-                </div>
-              </div>
+  {/* HUD */}
+  <div className="pointer-events-none absolute inset-0 p-4 font-mono text-sm">
+    <div className="flex items-start justify-between gap-4">
+      {/* Left: Health / Weapon / Cash */}
+      <div className="pointer-events-auto rounded-md border border-border bg-card/80 p-3 backdrop-blur">
+        <div className="mb-2 flex items-center gap-2">
+          <span className="text-xs text-muted-foreground">HP</span>
+          <div className="h-3 w-40 overflow-hidden rounded-sm border border-border bg-background">
+            <div className="h-full bg-accent transition-all" style={{ width: `${(s.player.hp / s.player.maxHp) * 100}%` }} />
+          </div>
+          <span className="text-xs">{Math.max(0, Math.ceil(s.player.hp))}/{s.player.maxHp}</span>
+        </div>
+        <div className="text-xs text-muted-foreground">CREDITS: <span className="text-hud">${s.player.cash}</span></div>
+        <div className="mt-1 text-xs">
+          <span className="text-muted-foreground">WEAPON:</span>{" "}
+          <span style={{ color: activeWeapon.color }}>{activeWeapon.name}</span>
+        </div>
+        <div className="mt-1 flex gap-1">
+          {s.player.inventory.map((w, i) => (
+            <span key={w.id} className={`rounded-sm border px-1.5 py-0.5 text-[10px] ${i === s.player.weaponIndex ? "border-primary text-primary" : "border-border text-muted-foreground"}`}>
+              {i + 1} {w.name.split(" ")[0]}
+            </span>
+          ))}
+        </div>
+      </div>
 
-              {/* Right: Quests */}
-              <div className="pointer-events-auto max-w-sm rounded-md border border-border bg-card/80 p-3 backdrop-blur">
-                <div className="mb-1 text-xs uppercase tracking-widest text-primary">Main Quest</div>
-                <ul className="space-y-1 text-xs">
-                  {s.mainQuest.map((q) => (
-                    <li key={q.id} className={q.done ? "text-muted-foreground line-through" : "text-foreground"}>
-                      • {q.text}{q.type === "kill" ? ` (${q.progress}/${q.target})` : ""}
-                    </li>
-                  ))}
-                </ul>
-                {s.sideQuests.some(q => q.accepted && !q.done) && (
-                  <>
-                    <div className="mb-1 mt-2 text-xs uppercase tracking-widest text-toxic">Side Quests</div>
-                    <ul className="space-y-1 text-xs">
-                      {s.sideQuests.filter(q => q.accepted && !q.done).map(q => (
-                        <li key={q.id}>
-                          • {q.title}: {q.steps[0].text}{q.steps[0].type === "kill" ? ` (${q.steps[0].progress}/${q.steps[0].target})` : ""}
-                        </li>
-                      ))}
-                    </ul>
-                  </>
-                )}
-              </div>
-            </div>
+      {/* Center: Round Counter */}
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 text-center">
+        <div className="text-4xl font-bold text-accent tracking-tighter italic">ROUND {s.round}</div>
+        <div className="text-xs text-muted-foreground">KILLS: {s.killedInRound}/{s.zombiesToKill}</div>
+      </div>
+
+      {/* Right: Quests */}
+      <div className="pointer-events-auto max-w-sm rounded-md border border-border bg-card/80 p-3 backdrop-blur">
+        <div className="mb-1 text-xs uppercase tracking-widest text-primary">Main Quest</div>
+        <ul className="space-y-1 text-xs">
+          {s.mainQuest.map((q) => (
+            <li key={q.id} className={q.done ? "text-muted-foreground line-through" : "text-foreground"}>
+              • {q.text}{q.type === "kill" ? ` (${q.progress}/${q.target})` : ""}
+            </li>
+          ))}
+        </ul>
+        {s.sideQuests.some(q => q.accepted && !q.done) && (
+          <>
+            <div className="mb-1 mt-2 text-xs uppercase tracking-widest text-toxic">Side Quests</div>
+            <ul className="space-y-1 text-xs">
+              {s.sideQuests.filter(q => q.accepted && !q.done).map(q => (
+                <li key={q.id}>
+                  • {q.title}: {q.steps[0].text}{q.steps[0].type === "kill" ? ` (${q.steps[0].progress}/${q.steps[0].target})` : ""}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </div>
+    </div>
+
 
             {/* Bottom center hint */}
             {s.interactHint && (
@@ -329,16 +348,20 @@ function createInitialState() {
     aim: 0,
     invuln: 0,
   };
+  const round = 1;
+  const zombiesToKill = 10;
+  const killedInRound = 0;
   const stations: Station[] = [
     { pos: { x: 500, y: 500 },   weapon: WEAPONS.smg,     label: "SMG" },
     { pos: { x: 1900, y: 500 },  weapon: WEAPONS.shotgun, label: "Shotgun" },
     { pos: { x: 500, y: 1400 },  weapon: WEAPONS.rifle,   label: "Rifle" },
     { pos: { x: 1900, y: 1400 }, weapon: WEAPONS.plasma,  label: "Plasma" },
   ];
-  const npcs: NPC[] = [
-    { pos: { x: 350, y: 900 },  name: "Scav Mira",   sideQuestId: "sq1", color: "#7ad0ff", radius: 16 },
-    { pos: { x: 2000, y: 900 }, name: "Ranger Kade", sideQuestId: "sq2", color: "#8bff6a", radius: 16 },
-    { pos: { x: 1200, y: 300 }, name: "Doc Reyes",   sideQuestId: "sq3", color: "#ffb46a", radius: 16 },
+  const npcs: NPC[] = [];
+  const worldObjects: WorldObject[] = [
+    { pos: { x: 400, y: 400 }, color: "#ff0000", radius: 15, questId: "sq_lights", stepId: "l1", active: true, locked: false },
+    { pos: { x: 2000, y: 400 }, color: "#00ff00", radius: 15, questId: "sq_lights", stepId: "l2", active: true, locked: false },
+    { pos: { x: 1200, y: 1400 }, color: "#0000ff", radius: 15, questId: "sq_lights", stepId: "l3", active: true, locked: false },
   ];
   const gate: Vec = { x: WORLD_W / 2, y: WORLD_H / 2 };
   return {
@@ -350,14 +373,18 @@ function createInitialState() {
     particles: [] as { pos: Vec; vel: Vec; life: number; color: string }[],
     stations,
     npcs,
+    worldObjects,
     gate,
     mainQuest: MAIN_QUEST.map(q => ({ ...q })),
     sideQuests: SIDE_QUESTS.map(q => ({ ...q, steps: q.steps.map(s => ({ ...s })) })),
     mainIndex: 0,
+    round: 1,
+    zombiesToKill: 10,
+    killedInRound: 0,
     spawnTimer: 0,
     toasts: [] as { msg: string; life: number }[],
     interactHint: "" as string,
-    interactTarget: null as null | { kind: "station" | "npc" | "gate"; ref: unknown },
+    interactTarget: null as null | { kind: "station" | "npc" | "gate" | "worldobject"; ref: unknown },
     camera: { x: 0, y: 0 },
     inArena: false,
     boss: null as Boss | null,
@@ -415,14 +442,8 @@ function update(s: GameState, dt: number) {
     }
     if (!s.interactTarget) for (const n of s.npcs) {
       if (dist(s.player.pos, n.pos) < 55) {
-        const sq = s.sideQuests.find(q => q.id === n.sideQuestId);
-        if (sq) {
-          if (sq.done) s.interactHint = `${n.name}: "Thanks, survivor."`;
-          else if (!sq.accepted) s.interactHint = `Talk to ${n.name} — accept "${sq.title}"`;
-          else if (sq.steps.every(x => x.done)) s.interactHint = `Turn in "${sq.title}" — reward $${sq.reward}`;
-          else s.interactHint = `${n.name}: quest in progress`;
-          s.interactTarget = { kind: "npc", ref: n };
-        }
+        s.interactHint = `${n.name}: "Greetings"`;
+        s.interactTarget = { kind: "npc", ref: n };
         break;
       }
     }
@@ -443,10 +464,17 @@ function update(s: GameState, dt: number) {
   // Spawn zombies
   if (!s.inArena) {
     s.spawnTimer -= dt;
-    const cap = 22;
+    const cap = 5 + s.round * 3;
     if (s.spawnTimer <= 0 && s.zombies.length < cap) {
       s.spawnTimer = rand(0.4, 1.2);
       spawnZombie(s);
+    }
+    if (s.zombies.length === 0 && s.killedInRound >= s.zombiesToKill) {
+      s.round++;
+      s.killedInRound = 0;
+      s.zombiesToKill += 5;
+      s.worldObjects.forEach(obj => obj.locked = false);
+      pushToast(s, `ROUND ${s.round} BEGINS`);
     }
   }
 
@@ -457,13 +485,15 @@ function update(s: GameState, dt: number) {
     const d = Math.hypot(dx, dy) || 1;
     z.pos.x += (dx / d) * z.speed * dt;
     z.pos.y += (dy / d) * z.speed * dt;
-    if (d < z.radius + PLAYER_RADIUS) {
-      if (s.player.invuln <= 0) {
-        s.player.hp -= z.damage;
-        s.player.invuln = 0.5;
-        pushToast(s, "-" + z.damage + " HP");
-      }
+  if (d < z.radius + PLAYER_RADIUS) {
+    if (s.player.invuln <= 0) {
+      s.player.hp -= z.damage;
+      s.player.invuln = 0.5;
+      pushToast(s, "-" + z.damage + " HP");
+      audio.playHurt();
     }
+  }
+
   }
   s.player.invuln = Math.max(0, s.player.invuln - dt);
 
@@ -498,6 +528,7 @@ function update(s: GameState, dt: number) {
           z.hp -= b.damage;
           b.life = 0;
           spark(s, b.pos, "#ff6a6a");
+          audio.playHit();
           break;
         }
       }
@@ -506,19 +537,22 @@ function update(s: GameState, dt: number) {
           if (s.boss.invulnTimer <= 0) {
             s.boss.hp -= b.damage;
             spark(s, b.pos, "#ff3a3a");
+            audio.playHit();
           }
           b.life = 0;
         }
       }
     } else {
-      if (dist(b.pos, s.player.pos) < PLAYER_RADIUS + b.radius) {
-        if (s.player.invuln <= 0) {
-          s.player.hp -= b.damage;
-          s.player.invuln = 0.3;
-          pushToast(s, "-" + b.damage + " HP");
-        }
-        b.life = 0;
-      }
+  if (dist(b.pos, s.player.pos) < PLAYER_RADIUS + b.radius) {
+    if (s.player.invuln <= 0) {
+      s.player.hp -= b.damage;
+      s.player.invuln = 0.3;
+      pushToast(s, "-" + b.damage + " HP");
+      audio.playHurt();
+    }
+    b.life = 0;
+  }
+
     }
   }
   // Cull
@@ -531,6 +565,7 @@ function update(s: GameState, dt: number) {
     if (z.hp <= 0) {
       s.player.cash += z.kind === "brute" ? 60 : z.kind === "runner" ? 25 : 15;
       spark(s, z.pos, "#7a1a1a", 12);
+      s.killedInRound++;
       // main kill quest
       const killStep = s.mainQuest.find(q => q.type === "kill" && !q.done);
       if (killStep) { killStep.progress = (killStep.progress ?? 0) + 1; if (killStep.progress >= (killStep.target ?? 0)) { killStep.done = true; pushToast(s, "Main step complete"); } }
@@ -548,7 +583,39 @@ function update(s: GameState, dt: number) {
     } else remaining.push(z);
   }
   s.zombies = remaining;
+  
+   // RGB Light Quest Logic
+   for (const b of s.bullets) {
+     if (!b.friendly) continue;
+     for (const obj of s.worldObjects) {
+       if (!obj.active || obj.locked) continue;
+       if (dist(b.pos, obj.pos) < obj.radius + b.radius) {
+         b.life = 0;
+         spark(s, b.pos, obj.color);
+         const sq = s.sideQuests.find(q => q.id === obj.questId);
+         if (sq) {
+           const currentStepIdx = sq.steps.findIndex(step => !step.done);
+           const targetStep = sq.steps[currentStepIdx];
+           if (targetStep && targetStep.id === obj.stepId) {
+             targetStep.done = true;
+             pushToast(s, "Light activated!");
+             if (sq.steps.every(st => st.done)) {
+               sq.done = true;
+               s.player.hp = s.player.maxHp;
+               pushToast(s, "RGB Sequence complete: MAX HEALTH & AMMO!");
+             }
+           } else {
+             pushToast(s, "Wrong order! Sequence locked until next round.");
+             sq.steps.forEach(st => st.done = false);
+             s.worldObjects.forEach(o => o.locked = true);
+           }
+         }
+         break;
+       }
+     }
+   }
 
+  
   // Particles
   for (const p of s.particles) {
     p.pos.x += p.vel.x * dt; p.pos.y += p.vel.y * dt;
@@ -570,6 +637,7 @@ function tryShoot(s: GameState) {
   const now = performance.now();
   if (now - s.player.lastShot < w.fireRate) return;
   s.player.lastShot = now;
+  audio.playShoot(w.id);
   for (let i = 0; i < w.bulletsPerShot; i++) {
     const a = s.player.aim + (Math.random() - 0.5) * w.spread * 2;
     s.bullets.push({
@@ -624,7 +692,10 @@ function tryInteract(s: GameState, forceUi: () => void) {
   if (t.kind === "station") {
     const st = t.ref as Station;
     const owned = s.player.inventory.some(w => w.id === st.weapon.id);
-    if (owned) { pushToast(s, "Already owned"); }
+    if (owned) { 
+      pushToast(s, "Already owned"); 
+      audio.playInteract();
+    }
     else if (s.player.cash >= st.weapon.cost) {
       s.player.cash -= st.weapon.cost;
       s.player.inventory.push(st.weapon);
@@ -632,13 +703,29 @@ function tryInteract(s: GameState, forceUi: () => void) {
       pushToast(s, `Bought ${st.weapon.name}`);
       const buyStep = s.mainQuest.find(q => q.type === "buy" && !q.done);
       if (buyStep) { buyStep.done = true; pushToast(s, "Main step complete"); }
-    } else pushToast(s, "Not enough credits");
+      audio.playInteract();
+    } else {
+      pushToast(s, "Not enough credits");
+      audio.playInteract();
+    }
   } else if (t.kind === "npc") {
     const n = t.ref as NPC;
     const sq = s.sideQuests.find(q => q.id === n.sideQuestId)!;
-    if (!sq.accepted) { sq.accepted = true; pushToast(s, `Accepted: ${sq.title}`); }
+    if (!sq.accepted) { 
+      sq.accepted = true; 
+      pushToast(s, `Accepted: ${sq.title}`); 
+      audio.playInteract();
+    }
     else if (sq.steps.every(x => x.done) && !sq.done) {
-      sq.done = true; s.player.cash += sq.reward; pushToast(s, `+$${sq.reward} — ${sq.title} complete`);
+      sq.done = true; 
+      if (sq.reward === "MAX_RESOURCES") {
+        s.player.hp = s.player.maxHp;
+        pushToast(s, `Reward: Max Health & Ammo!`);
+      } else {
+        s.player.cash += sq.reward; 
+        pushToast(s, `+$${sq.reward} — ${sq.title} complete`);
+      }
+      audio.playInteract();
     }
   } else if (t.kind === "gate") {
     const step = s.mainQuest[4];
@@ -687,6 +774,7 @@ function enterArena(s: GameState) {
     invulnTimer: 0.6,
   };
   pushToast(s, "THE HARVESTER awakens");
+  audio.playMusic("boss");
 }
 
 function updateBoss(s: GameState, dt: number) {
@@ -779,11 +867,32 @@ function render(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, s: Gam
   if (s.inArena) drawArena(ctx, s);
   else drawWorldMarkers(ctx, s);
 
-  // Stations
-  if (!s.inArena) for (const st of s.stations) drawStation(ctx, st, s);
+  if (!s.inArena) {
+    for (const st of s.stations) drawStation(ctx, st, s);
+    for (const obj of s.worldObjects) {
+      const sq = s.sideQuests.find(q => q.id === obj.questId);
+      const step = sq ? sq.steps.find(st => st.id === obj.stepId) : null;
+      const isActive = step && step.done;
+      
+      ctx.save();
+      if (isActive) {
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = obj.color;
+        ctx.fillStyle = obj.color;
+      } else {
+        ctx.fillStyle = obj.locked ? "#333" : "#666";
+        if (!obj.locked) {
+          ctx.strokeStyle = obj.color;
+          ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.arc(obj.pos.x, obj.pos.y, obj.radius, 0, Math.PI * 2); ctx.stroke();
+        }
+      }
+      ctx.beginPath(); ctx.arc(obj.pos.x, obj.pos.y, obj.radius, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = "white"; ctx.lineWidth = 1; ctx.stroke();
+      ctx.restore();
+    }
+  }
 
-  // NPCs
-  if (!s.inArena) for (const n of s.npcs) drawNpc(ctx, n, s);
 
   // Gate
   if (!s.inArena) drawGate(ctx, s);
@@ -903,18 +1012,9 @@ function drawStation(ctx: CanvasRenderingContext2D, st: Station, s: GameState) {
 }
 
 function drawNpc(ctx: CanvasRenderingContext2D, n: NPC, s: GameState) {
-  const sq = s.sideQuests.find(q => q.id === n.sideQuestId);
   ctx.fillStyle = n.color;
   ctx.beginPath(); ctx.arc(n.pos.x, n.pos.y, n.radius, 0, Math.PI * 2); ctx.fill();
   ctx.strokeStyle = "#000"; ctx.lineWidth = 2; ctx.stroke();
-  // indicator
-  if (sq && !sq.done) {
-    const label = !sq.accepted ? "!" : sq.steps.every(x => x.done) ? "✓" : "…";
-    ctx.fillStyle = !sq.accepted ? "#e8c56a" : sq.steps.every(x => x.done) ? "#8bff6a" : "#7ad0ff";
-    ctx.font = "bold 16px 'JetBrains Mono', monospace";
-    ctx.textAlign = "center";
-    ctx.fillText(label, n.pos.x, n.pos.y - 24);
-  }
   ctx.fillStyle = "#ccc";
   ctx.font = "10px 'JetBrains Mono', monospace";
   ctx.fillText(n.name, n.pos.x, n.pos.y + 30);

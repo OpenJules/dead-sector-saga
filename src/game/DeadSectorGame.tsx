@@ -89,7 +89,7 @@ export default function DeadSectorGame() {
   useEffect(() => {
     const keys = stateRef.current.keys;
     const onDown = (e: KeyboardEvent) => {
-      keys[e.key.toLowerCase()] = true;
+      stateRef.current.keys[e.key.toLowerCase()] = true;
       if (e.key.toLowerCase() === "e") tryInteract(stateRef.current, forceUi);
       if (e.key === "1") switchWeapon(stateRef.current, 0);
       if (e.key === "2") switchWeapon(stateRef.current, 1);
@@ -97,7 +97,7 @@ export default function DeadSectorGame() {
       if (e.key === "4") switchWeapon(stateRef.current, 3);
       if (e.key === "5") switchWeapon(stateRef.current, 4);
     };
-    const onUp = (e: KeyboardEvent) => { keys[e.key.toLowerCase()] = false; };
+    const onUp = (e: KeyboardEvent) => { stateRef.current.keys[e.key.toLowerCase()] = false; };
     window.addEventListener("keydown", onDown);
     window.addEventListener("keyup", onUp);
     return () => {

@@ -87,7 +87,7 @@ export default function DeadSectorGame() {
 
   // Input
   useEffect(() => {
-    const keys = stateRef.current.keys;
+    
     const onDown = (e: KeyboardEvent) => {
       stateRef.current.keys[e.key.toLowerCase()] = true;
       if (e.key.toLowerCase() === "e") tryInteract(stateRef.current, forceUi);

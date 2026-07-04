@@ -68,6 +68,15 @@ const SIDE_QUESTS: SideQuest[] = [
       { id: "l3", text: "Shoot the Blue Light", type: "shoot", color: "#0000ff", location: { x: 1200, y: 1400 }, done: false },
     ],
   },
+  {
+    id: "sq_supply", title: "Supply Run: Recover 4 Crates", accepted: true, done: false, reward: 300,
+    steps: [
+      { id: "c1", text: "Recover crate — NW ruins", type: "reach", location: { x: 300, y: 900 }, done: false },
+      { id: "c2", text: "Recover crate — NE outpost", type: "reach", location: { x: 2100, y: 900 }, done: false },
+      { id: "c3", text: "Recover crate — south depot", type: "reach", location: { x: 800, y: 1500 }, done: false },
+      { id: "c4", text: "Recover crate — east alley", type: "reach", location: { x: 1700, y: 1500 }, done: false },
+    ],
+  },
 ];
 
 // ---------- Helpers ----------

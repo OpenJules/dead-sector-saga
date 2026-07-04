@@ -774,7 +774,8 @@ function updateReachQuests(s: GameState) {
       sq.done = true;
       const amount = typeof sq.reward === "number" ? sq.reward : 0;
       s.player.cash += amount;
-      pushToast(s, `+$${amount} — ${sq.title} complete`);
+      refillAmmo(s, 0.5);
+      pushToast(s, `+$${amount} & ammo refill — ${sq.title} complete`);
       audio.playInteract();
     }
   }

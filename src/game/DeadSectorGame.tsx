@@ -783,14 +783,23 @@ function tryInteract(s: GameState, forceUi: () => void) {
   const t = s.interactTarget;
   if (t.kind === "station") {
     const st = t.ref as Station;
-    const owned = s.player.inventory.some(w => w.id === st.weapon.id);
-    if (owned) { 
-      pushToast(s, "Already owned"); 
+    const owned = s.player.inventory.some(slot => slot.weapon.id === st.weapon.id);
+    if (owned) {
+      const cost = Math.max(20, Math.floor(st.weapon.cost * 0.15));
+      if (s.player.cash >= cost) {
+        s.player.cash -= cost;
+        const slot = s.player.inventory.find(x => x.weapon.id === st.weapon.id)!;
+        slot.reserve = st.weapon.reserveMax;
+        slot.ammo = st.weapon.magSize;
+        pushToast(s, `Ammo refilled — $${cost}`);
+      } else {
+        pushToast(s, `Refill costs $${cost}`);
+      }
       audio.playInteract();
     }
     else if (s.player.cash >= st.weapon.cost) {
       s.player.cash -= st.weapon.cost;
-      s.player.inventory.push(st.weapon);
+      s.player.inventory.push(makeSlot(st.weapon));
       s.player.weaponIndex = s.player.inventory.length - 1;
       pushToast(s, `Bought ${st.weapon.name}`);
       const buyStep = s.mainQuest.find(q => q.type === "buy" && !q.done);

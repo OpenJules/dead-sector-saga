@@ -464,15 +464,17 @@ function update(s: GameState, dt: number) {
   // Spawn zombies
   if (!s.inArena) {
     s.spawnTimer -= dt;
-    const cap = 5 + s.round * 3;
-    if (s.spawnTimer <= 0 && s.zombies.length < cap) {
-      s.spawnTimer = rand(0.4, 1.2);
+    const cap = Math.min(5 + s.round * 3, 8);
+    const remainingToSpawn = s.zombiesToKill - s.killedInRound - s.zombies.length;
+    if (s.spawnTimer <= 0 && s.zombies.length < cap && remainingToSpawn > 0) {
+      s.spawnTimer = rand(0.6, 1.4);
       spawnZombie(s);
     }
-    if (s.zombies.length === 0 && s.killedInRound >= s.zombiesToKill) {
+    if (s.killedInRound >= s.zombiesToKill && s.zombies.length === 0) {
       s.round++;
       s.killedInRound = 0;
       s.zombiesToKill += 5;
+      s.spawnTimer = 2;
       s.worldObjects.forEach(obj => obj.locked = false);
       pushToast(s, `ROUND ${s.round} BEGINS`);
     }

@@ -694,6 +694,14 @@ function updateReachQuests(s: GameState) {
         st.done = true; pushToast(s, `${sq.title}: objective complete`);
       }
     }
+    // Auto-complete side quests that have no NPC turn-in
+    if (sq.id === "sq_supply" && !sq.done && sq.steps.every(x => x.done)) {
+      sq.done = true;
+      const amount = typeof sq.reward === "number" ? sq.reward : 0;
+      s.player.cash += amount;
+      pushToast(s, `+$${amount} — ${sq.title} complete`);
+      audio.playInteract();
+    }
   }
 }
 

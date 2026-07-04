@@ -19,9 +19,9 @@ type Bullet = { pos: Vec; vel: Vec; damage: number; life: number; friendly: bool
 type Zombie = { pos: Vec; hp: number; maxHp: number; speed: number; damage: number; radius: number; kind: "walker" | "runner" | "brute" };
 type Station = { pos: Vec; weapon: Weapon; label: string };
 type QuestStep = { id: string; text: string; type: "kill" | "reach" | "buy" | "interact" | "shoot"; target?: number; progress?: number; location?: Vec; done: boolean; color?: string };
-type SideQuest = { id: string; title: string; steps: QuestStep[]; reward: string; done: boolean; accepted: boolean };
+type SideQuest = { id: string; title: string; steps: QuestStep[]; reward: number | string; done: boolean; accepted: boolean };
 type WorldObject = { pos: Vec; color: string; radius: number; questId: string; stepId: string; active: boolean; locked: boolean };
-type NPC = { pos: Vec; name: string; color: string; radius: number };
+type NPC = { pos: Vec; name: string; color: string; radius: number; sideQuestId?: string };
 type Phase = 0 | 1 | 2 | 3;
 type Boss = {
   pos: Vec;
@@ -464,15 +464,17 @@ function update(s: GameState, dt: number) {
   // Spawn zombies
   if (!s.inArena) {
     s.spawnTimer -= dt;
-    const cap = 5 + s.round * 3;
-    if (s.spawnTimer <= 0 && s.zombies.length < cap) {
-      s.spawnTimer = rand(0.4, 1.2);
+    const cap = Math.min(5 + s.round * 3, 8);
+    const remainingToSpawn = s.zombiesToKill - s.killedInRound - s.zombies.length;
+    if (s.spawnTimer <= 0 && s.zombies.length < cap && remainingToSpawn > 0) {
+      s.spawnTimer = rand(0.6, 1.4);
       spawnZombie(s);
     }
-    if (s.zombies.length === 0 && s.killedInRound >= s.zombiesToKill) {
+    if (s.killedInRound >= s.zombiesToKill && s.zombies.length === 0) {
       s.round++;
       s.killedInRound = 0;
       s.zombiesToKill += 5;
+      s.spawnTimer = 2;
       s.worldObjects.forEach(obj => obj.locked = false);
       pushToast(s, `ROUND ${s.round} BEGINS`);
     }
@@ -722,8 +724,9 @@ function tryInteract(s: GameState, forceUi: () => void) {
         s.player.hp = s.player.maxHp;
         pushToast(s, `Reward: Max Health & Ammo!`);
       } else {
-        s.player.cash += sq.reward; 
-        pushToast(s, `+$${sq.reward} — ${sq.title} complete`);
+        const amount = typeof sq.reward === "number" ? sq.reward : 0;
+        s.player.cash += amount;
+        pushToast(s, `+$${amount} — ${sq.title} complete`);
       }
       audio.playInteract();
     }

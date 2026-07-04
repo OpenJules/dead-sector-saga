@@ -2,14 +2,14 @@ export class AudioEngine {
   private ctx: AudioContext;
   private mainGain: GainNode;
   private musicGain: GainNode;
-  private currentMusic: { 
-    osc: OscillatorNode[], 
-    gain: GainNode, 
-    interval: number | null 
+  private currentMusic: {
+    osc: OscillatorNode[],
+    gain: GainNode,
+    interval: ReturnType<typeof setInterval> | null
   } | null = null;
 
   constructor() {
-    this.ctx = new (window.AudioContext || (window).webkitAudioContext)!();
+    this.ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
     this.mainGain = this.ctx.createGain();
     this.musicGain = this.ctx.createGain();
     

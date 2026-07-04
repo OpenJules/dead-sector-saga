@@ -104,11 +104,11 @@ export default function DeadSectorGame() {
       stateRef.current.keys[e.key.toLowerCase()] = true;
       if (e.key.toLowerCase() === "e") tryInteract(stateRef.current, forceUi);
       if (e.key.toLowerCase() === "r") startReload(stateRef.current);
-      if (e.key === "1") switchWeapon(stateRef.current, 0);
-      if (e.key === "2") switchWeapon(stateRef.current, 1);
-      if (e.key === "3") switchWeapon(stateRef.current, 2);
-      if (e.key === "4") switchWeapon(stateRef.current, 3);
-      if (e.key === "5") switchWeapon(stateRef.current, 4);
+      if (e.key.toLowerCase() === "q") {
+        const s = stateRef.current;
+        const nextIndex = (s.player.weaponIndex + 1) % s.player.inventory.length;
+        switchWeapon(s, nextIndex);
+      }
     };
     const onUp = (e: KeyboardEvent) => { stateRef.current.keys[e.key.toLowerCase()] = false; };
     window.addEventListener("keydown", onDown);
@@ -248,7 +248,7 @@ export default function DeadSectorGame() {
         <div className="mt-1 flex gap-1">
           {s.player.inventory.map((slot, i) => (
             <span key={slot.weapon.id} className={`rounded-sm border px-1.5 py-0.5 text-[10px] ${i === s.player.weaponIndex ? "border-primary text-primary" : "border-border text-muted-foreground"}`}>
-              {i + 1} {slot.weapon.name.split(" ")[0]}
+              {slot.weapon.name.split(" ")[0]}
             </span>
           ))}
         </div>
@@ -313,13 +313,12 @@ export default function DeadSectorGame() {
               ))}
             </div>
 
-            {/* Controls */}
-            <div className="absolute bottom-4 left-4 text-[10px] text-muted-foreground">
-              WASD move · Mouse aim/fire · E interact · 1-5 weapons
-            </div>
-          </div>
-        </>
-      )}
+             {/* Controls */}
+             {/* Controls removed from game view as per request */}
+           </div
+         >
+         </>
+       )}
     </div>
   );
 }
@@ -340,9 +339,9 @@ function TitleScreen({ onStart }: { onStart: () => void }) {
         >
           ENTER THE SECTOR
         </button>
-        <div className="mt-6 text-[10px] text-muted-foreground">
-          WASD move · Mouse aim &amp; fire · E interact · 1-5 switch weapons
-        </div>
+         <div className="mt-6 text-[10px] text-muted-foreground">
+           WASD move · Mouse aim &amp; fire · E interact · Q switch weapons
+         </div>
       </div>
     </div>
   );

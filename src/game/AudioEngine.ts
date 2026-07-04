@@ -9,6 +9,12 @@ export class AudioEngine {
   } | null = null;
 
   constructor() {
+    if (typeof window === "undefined") {
+      this.ctx = {} as any;
+      this.mainGain = {} as any;
+      this.musicGain = {} as any;
+      return;
+    }
     this.ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
     this.mainGain = this.ctx.createGain();
     this.musicGain = this.ctx.createGain();

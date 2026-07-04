@@ -68,6 +68,15 @@ const SIDE_QUESTS: SideQuest[] = [
       { id: "l3", text: "Shoot the Blue Light", type: "shoot", color: "#0000ff", location: { x: 1200, y: 1400 }, done: false },
     ],
   },
+  {
+    id: "sq_supply", title: "Supply Run: Recover 4 Crates", accepted: true, done: false, reward: 300,
+    steps: [
+      { id: "c1", text: "Recover crate — NW ruins", type: "reach", location: { x: 300, y: 900 }, done: false },
+      { id: "c2", text: "Recover crate — NE outpost", type: "reach", location: { x: 2100, y: 900 }, done: false },
+      { id: "c3", text: "Recover crate — south depot", type: "reach", location: { x: 800, y: 1500 }, done: false },
+      { id: "c4", text: "Recover crate — east alley", type: "reach", location: { x: 1700, y: 1500 }, done: false },
+    ],
+  },
 ];
 
 // ---------- Helpers ----------
@@ -685,6 +694,14 @@ function updateReachQuests(s: GameState) {
         st.done = true; pushToast(s, `${sq.title}: objective complete`);
       }
     }
+    // Auto-complete side quests that have no NPC turn-in
+    if (sq.id === "sq_supply" && !sq.done && sq.steps.every(x => x.done)) {
+      sq.done = true;
+      const amount = typeof sq.reward === "number" ? sq.reward : 0;
+      s.player.cash += amount;
+      pushToast(s, `+$${amount} — ${sq.title} complete`);
+      audio.playInteract();
+    }
   }
 }
 
@@ -964,8 +981,40 @@ function drawWorldMarkers(ctx: CanvasRenderingContext2D, s: GameState) {
   }
   for (const sq of s.sideQuests) {
     if (!sq.accepted || sq.done) continue;
-    for (const st of sq.steps) if (!st.done && st.type === "reach" && st.location) drawMarker(ctx, st.location, "#8bff6a", "?");
+    for (const st of sq.steps) {
+      if (st.done || st.type !== "reach" || !st.location) continue;
+      if (sq.id === "sq_supply") drawCrate(ctx, st.location);
+      else drawMarker(ctx, st.location, "#8bff6a", "?");
+    }
   }
+}
+
+function drawCrate(ctx: CanvasRenderingContext2D, p: Vec) {
+  ctx.save();
+  ctx.translate(p.x, p.y);
+  // pulsing glow
+  const t = performance.now() / 400;
+  const glow = 0.4 + 0.3 * Math.sin(t);
+  ctx.shadowColor = "#e8a04a";
+  ctx.shadowBlur = 20 * glow;
+  // crate body
+  ctx.fillStyle = "#8a5a2b";
+  ctx.fillRect(-18, -18, 36, 36);
+  ctx.strokeStyle = "#e8a04a";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(-18, -18, 36, 36);
+  // metal bands
+  ctx.beginPath();
+  ctx.moveTo(-18, 0); ctx.lineTo(18, 0);
+  ctx.moveTo(0, -18); ctx.lineTo(0, 18);
+  ctx.stroke();
+  ctx.restore();
+  // pickup ring
+  ctx.strokeStyle = "rgba(232,160,74,0.35)";
+  ctx.lineWidth = 2;
+  ctx.setLineDash([4, 6]);
+  ctx.beginPath(); ctx.arc(p.x, p.y, 55, 0, Math.PI * 2); ctx.stroke();
+  ctx.setLineDash([]);
 }
 
 function drawMarker(ctx: CanvasRenderingContext2D, p: Vec, color: string, label: string) {

@@ -48,11 +48,11 @@ const PLAYER_SPEED = 220;
 const PLAYER_RADIUS = 14;
 
 const WEAPONS: Record<string, Weapon> = {
-  pistol:   { id: "pistol",   name: "Rusty Pistol",  damage: 20, fireRate: 320, bulletSpeed: 620, spread: 0.05, bulletsPerShot: 1, cost: 0,    color: "#e8c56a" },
-  smg:      { id: "smg",      name: "Scavenger SMG", damage: 14, fireRate: 110, bulletSpeed: 720, spread: 0.12, bulletsPerShot: 1, cost: 400,  color: "#7ad0ff" },
-  shotgun:  { id: "shotgun",  name: "Trench Shotgun",damage: 18, fireRate: 550, bulletSpeed: 700, spread: 0.35, bulletsPerShot: 6, cost: 800,  color: "#ff9b5a" },
-  rifle:    { id: "rifle",    name: "Marksman Rifle",damage: 70, fireRate: 480, bulletSpeed: 1000,spread: 0.02, bulletsPerShot: 1, cost: 1400, color: "#ff5a5a" },
-  plasma:   { id: "plasma",   name: "Toxin Blaster", damage: 40, fireRate: 180, bulletSpeed: 820, spread: 0.06, bulletsPerShot: 1, cost: 2500, color: "#8bff6a" },
+  pistol:   { id: "pistol",   name: "Rusty Pistol",  damage: 20, fireRate: 320, bulletSpeed: 620, spread: 0.05, bulletsPerShot: 1, cost: 0,    color: "#e8c56a", magSize: 12, reserveMax: 96,  reloadTime: 1.0 },
+  smg:      { id: "smg",      name: "Scavenger SMG", damage: 14, fireRate: 110, bulletSpeed: 720, spread: 0.12, bulletsPerShot: 1, cost: 400,  color: "#7ad0ff", magSize: 30, reserveMax: 120, reloadTime: 1.5 },
+  shotgun:  { id: "shotgun",  name: "Trench Shotgun",damage: 18, fireRate: 550, bulletSpeed: 700, spread: 0.35, bulletsPerShot: 6, cost: 800,  color: "#ff9b5a", magSize: 6,  reserveMax: 36,  reloadTime: 2.0 },
+  rifle:    { id: "rifle",    name: "Marksman Rifle",damage: 70, fireRate: 480, bulletSpeed: 1000,spread: 0.02, bulletsPerShot: 1, cost: 1400, color: "#ff5a5a", magSize: 5,  reserveMax: 30,  reloadTime: 2.0 },
+  plasma:   { id: "plasma",   name: "Toxin Blaster", damage: 40, fireRate: 180, bulletSpeed: 820, spread: 0.06, bulletsPerShot: 1, cost: 2500, color: "#8bff6a", magSize: 20, reserveMax: 80,  reloadTime: 1.8 },
 };
 
 const MAIN_QUEST: QuestStep[] = [

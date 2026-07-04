@@ -3,7 +3,8 @@ import { pushToast, rand } from "../utils";
 import { audio } from "../AudioEngine";
 
 const ARENA_RADIUS = 350;
-const ORBIT_RADIUS = 280;
+const DISTANCE_FROM_EDGE = 20;
+const ORBIT_RADIUS = ARENA_RADIUS - DISTANCE_FROM_EDGE;
 
 export function enterHospitalArena(s: GameState) {
   const worldW = s.selectedMap === "hospital" ? 2000 : 2400;

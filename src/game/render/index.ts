@@ -6,6 +6,8 @@ import { drawStation, drawGate, drawWorldMarkers, drawNpc } from "./world";
 import { drawCrate } from "./effects";
 import { drawFlashlight, drawGenerator } from "./flashlight";
 import { drawHiveMind } from "../systems/hivemind";
+import { drawMiniBoss } from "../systems/miniboss";
+import { getMapConfig } from "../maps";
 
 export function render(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, s: GameState) {
   const cam = s.camera;
@@ -84,6 +86,40 @@ export function render(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement,
       drawHiveMind(ctx, s.boss as any);
     } else {
       drawBoss(ctx, s.boss);
+    }
+  }
+  
+  // Mini Boss (hospital map)
+  if (s.selectedMap === "hospital" && s.miniBoss && !s.inArena) {
+    drawMiniBoss(ctx, s.miniBoss);
+  }
+  
+  // Soul box indicator (hospital map)
+  if (s.selectedMap === "hospital" && !s.inArena && s.generator) {
+    const map = getMapConfig(s.selectedMap);
+    const soulBoxStep = s.mainQuest.find(q => q.type === "soulbox" && !q.done);
+    if (soulBoxStep && map.soulBoxPos && map.soulBoxRadius) {
+      const pulse = 0.5 + 0.5 * Math.sin(s.time * 4);
+      ctx.save();
+      ctx.globalAlpha = 0.3 + 0.2 * pulse;
+      ctx.strokeStyle = "#4488ff";
+      ctx.lineWidth = 3;
+      ctx.setLineDash([8, 4]);
+      ctx.lineDashOffset = s.time * 30;
+      ctx.beginPath();
+      ctx.arc(map.soulBoxPos.x, map.soulBoxPos.y, map.soulBoxRadius, 0, Math.PI * 2);
+      ctx.stroke();
+      // Glow
+      ctx.globalAlpha = 0.1 + 0.08 * pulse;
+      ctx.fillStyle = "#4488ff";
+      ctx.fill();
+      ctx.setLineDash([]);
+      ctx.restore();
+      // Soul box label
+      ctx.fillStyle = "#4488ff";
+      ctx.font = "12px monospace";
+      ctx.textAlign = "center";
+      ctx.fillText(`SOUL BOX: ${soulBoxStep.progress ?? 0}/${soulBoxStep.target}`, map.soulBoxPos.x, map.soulBoxPos.y - map.soulBoxRadius - 8);
     }
   }
 

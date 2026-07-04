@@ -90,7 +90,7 @@ export function drawWorldMarkers(ctx: CanvasRenderingContext2D, s: GameState) {
   
   // Draw vault for hospital map
   if (s.selectedMap === "hospital") {
-    const vaultPos = { x: 300, y: 300 };
+    const vaultPos = { x: 500, y: 500 };
     const vaultQuest = s.sideQuests.find(q => q.id === "sq_labvault");
     const allKeysFound = s.labKeysFound >= 3;
     

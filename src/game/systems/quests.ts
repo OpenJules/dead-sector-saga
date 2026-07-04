@@ -7,6 +7,8 @@ import { spawnZombie } from "./zombies";
 import { spark } from "./particles";
 import { tryInteractGenerator, getGeneratorInteractHint } from "./generator";
 import { tryInteractLabVault, tryPickupLabKey, getLabVaultInteractHint, getLabKeyInteractHint } from "./labvault";
+import { spawnMiniBoss, updateMiniBoss, drawMiniBoss } from "./miniboss";
+import { getMapConfig } from "../maps";
 
 export function updateInteractHint(s: GameState) {
   s.interactHint = "";
@@ -83,7 +85,8 @@ export function updateInteractHint(s: GameState) {
     }
     
     if (!s.interactTarget && dist(s.player.pos, s.gate) < 70) {
-      const gateStep = s.mainQuest.find(q => q.id === "m5");
+      // Find the gate step: last "reach" quest step in the main quest
+      const gateStep = s.mainQuest.filter(q => q.type === "reach").pop();
       if (gateStep && !gateStep.done) {
         // Check if previous steps are done
         const prevStepsDone = s.mainQuest.slice(0, s.mainQuest.indexOf(gateStep)).every(q => q.done);
@@ -191,7 +194,7 @@ export function tryInteract(s: GameState, forceUi: () => void) {
       audio.playInteract();
     }
   } else if (t.kind === "gate") {
-    const gateStep = s.mainQuest.find(q => q.id === "m5");
+    const gateStep = s.mainQuest.filter(q => q.type === "reach").pop();
     if (gateStep && !gateStep.done) {
       const prevStepsDone = s.mainQuest.slice(0, s.mainQuest.indexOf(gateStep)).every(q => q.done);
       if (prevStepsDone) {
@@ -212,7 +215,9 @@ export function updateReachQuests(s: GameState) {
     if (q.done || q.type !== "reach" || !q.location) continue;
     const idx = s.mainQuest.indexOf(q);
     if (idx > 0 && !s.mainQuest[idx - 1].done) continue;
-    if (q.id === "m5") continue; // gate handled via interact
+    // Skip the last reach step (gate) — handled via interact
+    const lastReachStep = s.mainQuest.filter(q => q.type === "reach").pop();
+    if (lastReachStep && q === lastReachStep) continue;
 
     // For hospital map, skip hold timer logic for non-first quests
     if (s.selectedMap === "hospital" && idx === 0) {
@@ -279,6 +284,39 @@ export function updateKillQuests(s: GameState) {
       s.player.cash += z.kind === "brute" ? 60 : z.kind === "runner" ? 25 : 15;
       spark(s, z.pos, "#7a1a1a", 12);
       s.killedInRound++;
+      
+      // Soul box check - kill zombies near the soul box area
+      if (s.selectedMap === "hospital" && !s.soulBoxComplete) {
+        const map = getMapConfig(s.selectedMap);
+        const soulBoxStep = s.mainQuest.find(q => q.type === "soulbox" && !q.done);
+        if (soulBoxStep && map.soulBoxPos && map.soulBoxRadius) {
+          const soulBoxDist = dist(z.pos, map.soulBoxPos);
+          if (soulBoxDist < map.soulBoxRadius) {
+            soulBoxStep.progress = (soulBoxStep.progress ?? 0) + 1;
+            // Visual feedback
+            for (let i = 0; i < 3; i++) {
+              s.particles.push({
+                pos: { x: z.pos.x, y: z.pos.y - 20 },
+                vel: { x: (Math.random() - 0.5) * 50, y: -80 - Math.random() * 40 },
+                life: 0.8,
+                color: "#66aaff",
+              });
+            }
+            if (soulBoxStep.progress >= (soulBoxStep.target ?? 0)) {
+              soulBoxStep.done = true;
+              s.soulBoxComplete = true;
+              pushToast(s, "Soul Box charged! Fuel acquired!");
+              // Spawn mini boss next round
+              s.round++;
+              s.killedInRound = 0;
+              s.zombiesToKill = 10;
+              s.spawnTimer = 1;
+              pushToast(s, "The ABOMINATION approaches!");
+            }
+          }
+        }
+      }
+      
       // main kill quest
       const killStep = s.mainQuest.find((q) => q.type === "kill" && !q.done);
       if (killStep) {

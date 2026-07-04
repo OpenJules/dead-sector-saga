@@ -4,7 +4,7 @@ import { audio } from "../AudioEngine";
 import { WEAPONS } from "../constants";
 import { makeSlot } from "../utils";
 
-const VAULT_POS = { x: 300, y: 300 };
+const VAULT_POS = { x: 500, y: 500 };
 const VAULT_INTERACT_DISTANCE = 60;
 const KEY_INTERACT_DISTANCE = 50;
 
@@ -60,9 +60,9 @@ export function tryPickupLabKey(s: GameState, keyIndex: number): boolean {
   if (s.selectedMap !== "hospital") return false;
   
   const keys = [
-    { pos: { x: 300, y: 1300 }, stepId: "k1" },
-    { pos: { x: 1700, y: 1300 }, stepId: "k2" },
-    { pos: { x: 300, y: 300 }, stepId: "k3" },
+    { pos: { x: 500, y: 2100 }, stepId: "k1" },
+    { pos: { x: 2700, y: 2100 }, stepId: "k2" },
+    { pos: { x: 500, y: 500 }, stepId: "k3" },
   ];
   
   if (keyIndex < 0 || keyIndex >= keys.length) return false;
@@ -108,9 +108,9 @@ export function getLabKeyInteractHint(s: GameState): string | null {
   if (s.selectedMap !== "hospital") return null;
   
   const keys = [
-    { pos: { x: 300, y: 1300 }, stepId: "k1" },
-    { pos: { x: 1700, y: 1300 }, stepId: "k2" },
-    { pos: { x: 300, y: 300 }, stepId: "k3" },
+    { pos: { x: 500, y: 2100 }, stepId: "k1" },
+    { pos: { x: 2700, y: 2100 }, stepId: "k2" },
+    { pos: { x: 500, y: 500 }, stepId: "k3" },
   ];
   
   for (let i = 0; i < keys.length; i++) {

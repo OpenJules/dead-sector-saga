@@ -23,12 +23,13 @@ import {
   updateRGBQuest,
   updateRoundSystem,
 } from "./systems/quests";
-import { updateParticles } from "./systems/particles";
+import { updateParticles, spark } from "./systems/particles";
 import { render } from "./render/index";
 import { HUD } from "./render/hud";
 import { TitleScreen } from "./ui/TitleScreen";
 import { Overlay } from "./ui/Overlay";
 import type { MapId } from "./types";
+import { spawnMiniBoss, updateMiniBoss } from "./systems/miniboss";
 
 export default function DeadSectorGame() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -139,6 +140,30 @@ export default function DeadSectorGame() {
 
       // Boss
       if (s.inArena && s.boss) updateBoss(s, dt);
+      
+      // Mini Boss (hospital map)
+      if (s.selectedMap === "hospital" && s.miniBoss) {
+        updateMiniBoss(s, dt);
+        // Check mini boss death and bullet collisions
+        for (const b of s.bullets) {
+          if (!b.friendly || b.life <= 0 || !s.miniBoss) continue;
+          const d = Math.hypot(b.pos.x - s.miniBoss.pos.x, b.pos.y - s.miniBoss.pos.y);
+          if (d < s.miniBoss.radius + b.radius) {
+            s.miniBoss.hp -= b.damage;
+            b.life = 0;
+            spark(s, b.pos, "#ff6644");
+            audio.playHit();
+          }
+        }
+      }
+      
+      // Spawn mini boss when soul box is complete and we're on the right step
+      if (s.selectedMap === "hospital" && s.soulBoxComplete && !s.miniBoss && !s.hasGeneratorKey) {
+        const mbStep = s.mainQuest.find(q => q.type === "killminiboss" && !q.done);
+        if (mbStep && s.round >= 2) {
+          spawnMiniBoss(s);
+        }
+      }
 
       // Render
       render(ctx, canvas, s);

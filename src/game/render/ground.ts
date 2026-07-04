@@ -13,30 +13,37 @@ export function drawGround(ctx: CanvasRenderingContext2D, s: GameState) {
     const startX = Math.floor(s.camera.x / step) * step;
     const startY = Math.floor(s.camera.y / step) * step;
     
-    for (let x = startX; x < s.camera.x + 2000; x += step) {
+    // Draw grid lines that cover the visible area
+    for (let x = startX; x < s.camera.x + s.canvasWidth + step; x += step) {
       ctx.beginPath();
-      ctx.moveTo(x, s.camera.y - 100);
-      ctx.lineTo(x, s.camera.y + 1400);
+      ctx.moveTo(x, s.camera.y);
+      ctx.lineTo(x, s.camera.y + s.canvasHeight);
       ctx.stroke();
     }
-    for (let y = startY; y < s.camera.y + 1500; y += step) {
+    for (let y = startY; y < s.camera.y + s.canvasHeight + step; y += step) {
       ctx.beginPath();
-      ctx.moveTo(s.camera.x - 100, y);
-      ctx.lineTo(s.camera.x + 2400, y);
+      ctx.moveTo(s.camera.x, y);
+      ctx.lineTo(s.camera.x + s.canvasWidth, y);
       ctx.stroke();
     }
     
-    // Blood stains (subtle)
+    // Blood stains (subtle) - spread across the larger map
     ctx.fillStyle = "rgba(100, 20, 20, 0.1)";
-    ctx.beginPath();
-    ctx.ellipse(400, 600, 30, 20, 0.3, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.ellipse(1200, 800, 25, 15, -0.5, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.ellipse(1600, 400, 20, 25, 0.8, 0, Math.PI * 2);
-    ctx.fill();
+    const bloodStains = [
+      { x: 400, y: 600, rx: 30, ry: 20, rot: 0.3 },
+      { x: 1200, y: 800, rx: 25, ry: 15, rot: -0.5 },
+      { x: 1600, y: 400, rx: 20, ry: 25, rot: 0.8 },
+      { x: 800, y: 1200, rx: 35, ry: 18, rot: 0.2 },
+      { x: 2400, y: 600, rx: 28, ry: 22, rot: -0.3 },
+      { x: 2000, y: 1400, rx: 32, ry: 16, rot: 0.6 },
+      { x: 600, y: 1800, rx: 24, ry: 20, rot: -0.4 },
+      { x: 2800, y: 1000, rx: 30, ry: 24, rot: 0.1 },
+    ];
+    for (const stain of bloodStains) {
+      ctx.beginPath();
+      ctx.ellipse(stain.x, stain.y, stain.rx, stain.ry, stain.rot, 0, Math.PI * 2);
+      ctx.fill();
+    }
   } else {
     // Outpost grid pattern
     const step = 60;
@@ -44,16 +51,16 @@ export function drawGround(ctx: CanvasRenderingContext2D, s: GameState) {
     ctx.lineWidth = 1;
     const startX = Math.floor(s.camera.x / step) * step;
     const startY = Math.floor(s.camera.y / step) * step;
-    for (let x = startX; x < s.camera.x + 2000; x += step) {
+    for (let x = startX; x < s.camera.x + s.canvasWidth + step; x += step) {
       ctx.beginPath();
-      ctx.moveTo(x, s.camera.y - 100);
-      ctx.lineTo(x, s.camera.y + 1400);
+      ctx.moveTo(x, s.camera.y);
+      ctx.lineTo(x, s.camera.y + s.canvasHeight);
       ctx.stroke();
     }
-    for (let y = startY; y < s.camera.y + 1500; y += step) {
+    for (let y = startY; y < s.camera.y + s.canvasHeight + step; y += step) {
       ctx.beginPath();
-      ctx.moveTo(s.camera.x - 100, y);
-      ctx.lineTo(s.camera.x + 2400, y);
+      ctx.moveTo(s.camera.x, y);
+      ctx.lineTo(s.camera.x + s.canvasWidth, y);
       ctx.stroke();
     }
   }

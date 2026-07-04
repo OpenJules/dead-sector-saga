@@ -44,7 +44,7 @@ export type Station = { pos: Vec; weapon: Weapon; label: string };
 export type QuestStep = {
   id: string;
   text: string;
-  type: "kill" | "reach" | "buy" | "interact" | "shoot";
+  type: "kill" | "reach" | "buy" | "interact" | "shoot" | "soulbox" | "killminiboss";
   target?: number;
   progress?: number;
   location?: Vec;
@@ -130,6 +130,10 @@ export type MapConfig = {
   hasFlashlight: boolean;
   hasGenerator: boolean;
   generatorPos?: Vec;
+  soulBoxPos?: Vec;
+  soulBoxRadius?: number;
+  soulBoxTarget?: number;
+  miniBossPos?: Vec;
   stations: { wx: string; x: number; y: number; label: string }[];
   worldObjects: { pos: Vec; color: string; radius: number; questId: string; stepId: string }[];
   mainQuest: QuestStep[];
@@ -155,6 +159,17 @@ export type HiveMindBoss = Boss & {
   exposed: boolean;
   exposeTimer: number;
   exposeCooldown: number;
+};
+
+export type MiniBoss = {
+  pos: Vec;
+  hp: number;
+  maxHp: number;
+  speed: number;
+  damage: number;
+  radius: number;
+  attackTimer: number;
+  phase: number;
 };
 
 export type GameState = {
@@ -204,4 +219,7 @@ export type GameState = {
   generator: Generator | null;
   labKeysFound: number;
   easterEggType: "rgb" | "labvault";
+  miniBoss: MiniBoss | null;
+  hasGeneratorKey: boolean;
+  soulBoxComplete: boolean;
 };

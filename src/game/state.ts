@@ -66,5 +66,8 @@ export function createInitialState(mapId: MapId = "outpost"): GameState {
       : null,
     labKeysFound: 0,
     easterEggType: map.easterEggType,
+    miniBoss: null,
+    hasGeneratorKey: false,
+    soulBoxComplete: false,
   };
 }

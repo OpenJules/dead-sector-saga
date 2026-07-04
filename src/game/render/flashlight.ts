@@ -75,27 +75,23 @@ export function drawGenerator(ctx: CanvasRenderingContext2D, s: GameState) {
   if (!s.generator) return;
   
   const gen = s.generator;
-  const cam = s.camera;
   
-  // Generator position in screen coordinates
-  const screenX = gen.pos.x - cam.x;
-  const screenY = gen.pos.y - cam.y;
-  
+  // Draw in world coordinates (camera transform is already applied)
   ctx.save();
   
   // Generator body
   ctx.fillStyle = gen.active ? "#2a4a2a" : "#3a3a3a";
-  ctx.fillRect(screenX - 30, screenY - 20, 60, 40);
+  ctx.fillRect(gen.pos.x - 30, gen.pos.y - 20, 60, 40);
   
   // Border
   ctx.strokeStyle = gen.active ? "#4a8a4a" : "#5a5a5a";
   ctx.lineWidth = 2;
-  ctx.strokeRect(screenX - 30, screenY - 20, 60, 40);
+  ctx.strokeRect(gen.pos.x - 30, gen.pos.y - 20, 60, 40);
   
   // Indicator light
   ctx.fillStyle = gen.active ? "#00ff00" : "#ff0000";
   ctx.beginPath();
-  ctx.arc(screenX + 20, screenY - 10, 5, 0, Math.PI * 2);
+  ctx.arc(gen.pos.x + 20, gen.pos.y - 10, 5, 0, Math.PI * 2);
   ctx.fill();
   
   // Pulsing glow when player is nearby
@@ -106,7 +102,7 @@ export function drawGenerator(ctx: CanvasRenderingContext2D, s: GameState) {
     ctx.shadowColor = "#ff6600";
     ctx.fillStyle = `rgba(255, 102, 0, ${0.3 * pulse})`;
     ctx.beginPath();
-    ctx.arc(screenX, screenY, 40, 0, Math.PI * 2);
+    ctx.arc(gen.pos.x, gen.pos.y, 40, 0, Math.PI * 2);
     ctx.fill();
     ctx.shadowBlur = 0;
   }
@@ -115,7 +111,7 @@ export function drawGenerator(ctx: CanvasRenderingContext2D, s: GameState) {
   ctx.fillStyle = "#ffffff";
   ctx.font = "10px monospace";
   ctx.textAlign = "center";
-  ctx.fillText("GENERATOR", screenX, screenY + 35);
+  ctx.fillText("GENERATOR", gen.pos.x, gen.pos.y + 35);
   
   ctx.restore();
 }

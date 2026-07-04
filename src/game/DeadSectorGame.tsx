@@ -355,11 +355,13 @@ function createInitialState() {
     pos: { x: WORLD_W / 2 - 300, y: WORLD_H / 2 } as Vec,
     hp: 100, maxHp: 100,
     cash: 150,
-    inventory: [WEAPONS.pistol] as Weapon[],
+    inventory: [makeSlot(WEAPONS.pistol)] as WeaponSlot[],
     weaponIndex: 0,
     lastShot: 0,
     aim: 0,
     invuln: 0,
+    reloadUntil: 0,
+    reloadingSlot: -1,
   };
   const round = 1;
   const zombiesToKill = 10;

@@ -8,6 +8,7 @@ export const HOSPITAL_MAP: MapConfig = {
   worldHeight: 2600,
   arenaWidth: 800,
   arenaHeight: 600,
+  arenaRadius: 350,
   playerStart: { x: 1600, y: 2300 },
   backgroundColor: "#0a0a0f",
   gridColor: "rgba(80,80,100,0.15)",

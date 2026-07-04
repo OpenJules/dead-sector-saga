@@ -76,28 +76,49 @@ export function drawArena(ctx: CanvasRenderingContext2D, s: GameState) {
   const y = (worldH - arenaH) / 2;
   
   if (s.selectedMap === "hospital") {
-    // Hospital operating theater
-    ctx.fillStyle = "#1a1a2a";
-    ctx.fillRect(x, y, arenaW, arenaH);
+    // Hospital operating theater - circular arena
+    const centerX = worldW / 2;
+    const centerY = worldH / 2;
+    const radius = 350;
     
-    // Medical cross pattern
+    // Circular floor
+    ctx.fillStyle = "#1a1a2a";
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Arena border
+    ctx.strokeStyle = "rgba(100, 100, 150, 0.5)";
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+    ctx.stroke();
+    
+    // Inner ring
+    ctx.strokeStyle = "rgba(100, 100, 150, 0.2)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius * 0.6, 0, Math.PI * 2);
+    ctx.stroke();
+    
+    // Medical cross pattern (vertical + horizontal lines across circle)
     ctx.strokeStyle = "rgba(100, 100, 150, 0.3)";
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(x + arenaW / 2, y + 50);
-    ctx.lineTo(x + arenaW / 2, y + arenaH - 50);
+    ctx.moveTo(centerX, centerY - radius + 30);
+    ctx.lineTo(centerX, centerY + radius - 30);
     ctx.stroke();
     ctx.beginPath();
-    ctx.moveTo(x + 50, y + arenaH / 2);
-    ctx.lineTo(x + arenaW - 50, y + arenaH / 2);
+    ctx.moveTo(centerX - radius + 30, centerY);
+    ctx.lineTo(centerX + radius - 30, centerY);
     ctx.stroke();
     
     // Operating table in center
     ctx.fillStyle = "#2a2a3a";
-    ctx.fillRect(x + arenaW / 2 - 40, y + arenaH / 2 - 20, 80, 40);
+    ctx.fillRect(centerX - 40, centerY - 20, 80, 40);
     ctx.strokeStyle = "rgba(150, 150, 200, 0.4)";
     ctx.lineWidth = 2;
-    ctx.strokeRect(x + arenaW / 2 - 40, y + arenaH / 2 - 20, 80, 40);
+    ctx.strokeRect(centerX - 40, centerY - 20, 80, 40);
   } else {
     // Outpost underworld arena
     ctx.fillStyle = "#1a0a0c";

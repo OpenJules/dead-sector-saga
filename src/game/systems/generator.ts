@@ -79,7 +79,7 @@ export function getGeneratorInteractHint(s: GameState): string | null {
     if (!s.hasGeneratorKey) {
       return "Need Generator Key";
     }
-    return "[E] Turn on Power";
+    return "Turn on Power";
   }
   
   return null;

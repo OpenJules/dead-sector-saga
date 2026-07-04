@@ -2,27 +2,32 @@ import type { GameState, HiveMindBoss, Phase } from "../types";
 import { pushToast, rand } from "../utils";
 import { audio } from "../AudioEngine";
 
+const ARENA_RADIUS = 350;
+const ORBIT_RADIUS = 280;
+
 export function enterHospitalArena(s: GameState) {
-  const map = s.selectedMap;
-  const arenaW = map === "hospital" ? 800 : 1200;
-  const arenaH = map === "hospital" ? 600 : 900;
-  const worldW = map === "hospital" ? 2000 : 2400;
-  const worldH = map === "hospital" ? 1600 : 1800;
+  const worldW = s.selectedMap === "hospital" ? 2000 : 2400;
+  const worldH = s.selectedMap === "hospital" ? 1600 : 1800;
   
   s.inArena = true;
   s.zombies = [];
   s.bullets = [];
-  s.player.pos = { x: worldW / 2, y: worldH / 2 + arenaH / 2 - 100 };
+  s.player.pos = { x: worldW / 2, y: worldH / 2 + 200 };
   s.player.hp = Math.max(s.player.hp, 80);
   
+  // Start boss at top of orbit
+  const startAngle = -Math.PI / 2;
   s.boss = {
-    pos: { x: worldW / 2, y: worldH / 2 - arenaH / 4 },
+    pos: {
+      x: worldW / 2 + Math.cos(startAngle) * ORBIT_RADIUS,
+      y: worldH / 2 + Math.sin(startAngle) * ORBIT_RADIUS,
+    },
     hp: 1800,
     maxHp: 1800,
     phase: 1,
     attackTimer: 2.0,
     moveTimer: 0,
-    target: { x: worldW / 2, y: worldH / 2 - arenaH / 4 },
+    target: { x: worldW / 2, y: worldH / 2 - ORBIT_RADIUS },
     radius: 50,
     invulnTimer: 1.0,
     type: "hivemind",
@@ -32,6 +37,9 @@ export function enterHospitalArena(s: GameState) {
     exposed: false,
     exposeTimer: 0,
     exposeCooldown: 5.0,
+    orbitAngle: startAngle,
+    orbitSpeed: 0.6,
+    orbiting: true,
   } as HiveMindBoss;
   
   pushToast(s, "THE HIVE MIND awakens");
@@ -50,17 +58,17 @@ export function updateHiveMind(s: GameState, dt: number) {
   if (targetPhase > b.phase) {
     b.phase = targetPhase;
     b.invulnTimer = 1.5;
+    b.orbitSpeed = b.phase === 1 ? 0.6 : b.phase === 2 ? 0.9 : 1.2;
     pushToast(s, `Phase ${b.phase}!`);
     s.player.hp = Math.min(s.player.maxHp, s.player.hp + 30);
     s.zombies = [];
     
-    // Update max minions and cooldowns based on phase
     if (b.phase === 2) {
       b.maxMinions = 8;
       b.spawnCooldown = 2.5;
       b.exposeCooldown = 4.0;
     } else if (b.phase === 3) {
-      b.maxMinions = 4; // Fewer but brutes
+      b.maxMinions = 4;
       b.spawnCooldown = 4.0;
       b.exposeCooldown = 3.0;
     }
@@ -71,7 +79,7 @@ export function updateHiveMind(s: GameState, dt: number) {
     return;
   }
   
-  // Expose mechanic - boss becomes vulnerable periodically
+  // Expose mechanic
   b.exposeTimer += dt;
   if (b.exposeTimer >= b.exposeCooldown) {
     b.exposed = true;
@@ -95,7 +103,33 @@ export function updateHiveMind(s: GameState, dt: number) {
     spawnMinions(s, b);
   }
   
-  // Attacks (tentacles and projectiles)
+  // Orbit movement around the circular arena perimeter
+  const worldW = s.selectedMap === "hospital" ? 2000 : 2400;
+  const worldH = s.selectedMap === "hospital" ? 1600 : 1800;
+  const centerX = worldW / 2;
+  const centerY = worldH / 2;
+  
+  if (b.orbiting) {
+    b.orbitAngle += b.orbitSpeed * dt;
+    b.pos.x = centerX + Math.cos(b.orbitAngle) * ORBIT_RADIUS;
+    b.pos.y = centerY + Math.sin(b.orbitAngle) * ORBIT_RADIUS;
+    
+    // Occasionally pause orbiting to do a focused attack
+    b.moveTimer -= dt;
+    if (b.moveTimer <= 0) {
+      b.orbiting = false;
+      b.moveTimer = 1.5 + Math.random();
+    }
+  } else {
+    // Pause at current position, face player
+    b.moveTimer -= dt;
+    if (b.moveTimer <= 0) {
+      b.orbiting = true;
+      b.moveTimer = rand(2, 4);
+    }
+  }
+  
+  // Attacks
   b.attackTimer -= dt;
   if (b.attackTimer <= 0) {
     performHiveMindAttack(s, b);
@@ -105,28 +139,21 @@ export function updateHiveMind(s: GameState, dt: number) {
 function spawnMinions(s: GameState, b: HiveMindBoss) {
   const worldW = s.selectedMap === "hospital" ? 2000 : 2400;
   const worldH = s.selectedMap === "hospital" ? 1600 : 1800;
-  const arenaW = s.selectedMap === "hospital" ? 800 : 1200;
-  const arenaH = s.selectedMap === "hospital" ? 600 : 900;
+  const centerX = worldW / 2;
+  const centerY = worldH / 2;
   
   const spawnCount = b.phase === 3 ? 2 : 3;
   
   for (let i = 0; i < spawnCount; i++) {
     const angle = Math.random() * Math.PI * 2;
-    const dist = 80 + Math.random() * 40;
+    const dist = 50 + Math.random() * (ARENA_RADIUS - 80);
     const spawnPos = {
-      x: b.pos.x + Math.cos(angle) * dist,
-      y: b.pos.y + Math.sin(angle) * dist,
+      x: centerX + Math.cos(angle) * dist,
+      y: centerY + Math.sin(angle) * dist,
     };
-    
-    // Constrain to arena
-    const arenaLeft = (worldW - arenaW) / 2;
-    const arenaTop = (worldH - arenaH) / 2;
-    spawnPos.x = Math.max(arenaLeft + 50, Math.min(arenaLeft + arenaW - 50, spawnPos.x));
-    spawnPos.y = Math.max(arenaTop + 50, Math.min(arenaTop + arenaH - 50, spawnPos.y));
     
     let minion;
     if (b.phase === 3) {
-      // Brutes in phase 3
       minion = {
         pos: spawnPos,
         hp: 140,
@@ -137,7 +164,6 @@ function spawnMinions(s: GameState, b: HiveMindBoss) {
         kind: "brute" as const,
       };
     } else if (b.phase === 2) {
-      // Runners in phase 2
       minion = {
         pos: spawnPos,
         hp: 25,
@@ -148,7 +174,6 @@ function spawnMinions(s: GameState, b: HiveMindBoss) {
         kind: "runner" as const,
       };
     } else {
-      // Walkers in phase 1
       minion = {
         pos: spawnPos,
         hp: 40,
@@ -165,11 +190,8 @@ function spawnMinions(s: GameState, b: HiveMindBoss) {
 }
 
 function performHiveMindAttack(s: GameState, b: HiveMindBoss) {
-  const worldW = s.selectedMap === "hospital" ? 2000 : 2400;
-  const worldH = s.selectedMap === "hospital" ? 1600 : 1800;
-  
   if (b.phase === 1) {
-    // Phase 1: Simple projectile spread
+    // Phase 1: 5-bullet spread aimed at player
     const base = Math.atan2(s.player.pos.y - b.pos.y, s.player.pos.x - b.pos.x);
     for (let i = -2; i <= 2; i++) {
       const a = base + i * 0.12;
@@ -199,7 +221,6 @@ function performHiveMindAttack(s: GameState, b: HiveMindBoss) {
       });
     }
     
-    // Aimed shots
     const base = Math.atan2(s.player.pos.y - b.pos.y, s.player.pos.x - b.pos.x);
     for (let i = 0; i < 3; i++) {
       const a = base + (Math.random() - 0.5) * 0.2;
@@ -215,8 +236,7 @@ function performHiveMindAttack(s: GameState, b: HiveMindBoss) {
     }
     b.attackTimer = 2.2;
   } else {
-    // Phase 3: Spore clouds + spiral + aimed
-    // Spiral pattern
+    // Phase 3: Spiral + aimed + spore clouds
     for (let i = 0; i < 16; i++) {
       const a = (i / 16) * Math.PI * 2 + s.time * 2;
       s.bullets.push({
@@ -230,7 +250,6 @@ function performHiveMindAttack(s: GameState, b: HiveMindBoss) {
       });
     }
     
-    // High-speed aimed shots
     const base = Math.atan2(s.player.pos.y - b.pos.y, s.player.pos.x - b.pos.x);
     for (let i = 0; i < 4; i++) {
       const a = base + (Math.random() - 0.5) * 0.15;
@@ -245,7 +264,7 @@ function performHiveMindAttack(s: GameState, b: HiveMindBoss) {
       });
     }
     
-    // Spore cloud (damage over time in area)
+    // Spore cloud particles
     const cloudAngle = Math.random() * Math.PI * 2;
     const cloudDist = 150 + Math.random() * 100;
     const cloudPos = {
@@ -253,7 +272,6 @@ function performHiveMindAttack(s: GameState, b: HiveMindBoss) {
       y: s.player.pos.y + Math.sin(cloudAngle) * cloudDist,
     };
     
-    // Create spore particles that deal damage
     for (let i = 0; i < 8; i++) {
       const a = (i / 8) * Math.PI * 2;
       s.particles.push({
@@ -275,7 +293,7 @@ export function drawHiveMind(ctx: CanvasRenderingContext2D, b: HiveMindBoss) {
   // Pulsing effect
   const pulse = 1 + Math.sin(performance.now() / 300) * 0.08;
   
-  // Brain body - organic mass shape
+  // Brain body
   const bodyColor = b.invulnTimer > 0 ? "#eeeeee" : 
     b.exposed ? "#ffaaaa" :
     b.phase === 3 ? "#888888" : 
@@ -329,7 +347,7 @@ export function drawHiveMind(ctx: CanvasRenderingContext2D, b: HiveMindBoss) {
   ctx.arc(15, -10, 3, 0, Math.PI * 2);
   ctx.fill();
   
-  // Tentacles (visual only)
+  // Tentacles
   ctx.strokeStyle = bodyColor;
   ctx.lineWidth = 4;
   for (let i = 0; i < 6; i++) {

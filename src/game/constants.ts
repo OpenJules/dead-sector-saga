@@ -19,6 +19,10 @@ export function getArenaHeight(mapId: MapId): number {
   return mapId === "hospital" ? HOSPITAL_MAP.arenaHeight : OUTPOST_MAP.arenaHeight;
 }
 
+export function getArenaRadius(mapId: MapId): number | undefined {
+  return mapId === "hospital" ? HOSPITAL_MAP.arenaRadius : undefined;
+}
+
 // ---------- World Dimensions (Outpost defaults for backward compatibility) ----------
 export const WORLD_W = 2400;
 export const WORLD_H = 1800;

@@ -1,5 +1,5 @@
 import type { GameState } from "../types";
-import { WORLD_W, WORLD_H, ARENA_W, ARENA_H, PLAYER_SPEED, PLAYER_RADIUS, getWorldWidth, getWorldHeight, getArenaWidth, getArenaHeight } from "../constants";
+import { WORLD_W, WORLD_H, ARENA_W, ARENA_H, PLAYER_SPEED, PLAYER_RADIUS, getWorldWidth, getWorldHeight, getArenaWidth, getArenaHeight, getArenaRadius } from "../constants";
 import { clamp } from "../utils";
 import { audio } from "../AudioEngine";
 
@@ -18,17 +18,36 @@ export function updatePlayer(s: GameState, dt: number) {
   const worldH = getWorldHeight(s.selectedMap);
   const arenaW = getArenaWidth(s.selectedMap);
   const arenaH = getArenaHeight(s.selectedMap);
+  const arenaRadius = getArenaRadius(s.selectedMap);
   
-  const bounds = s.inArena
-    ? {
-        minX: (worldW - arenaW) / 2,
-        minY: (worldH - arenaH) / 2,
-        maxX: (worldW + arenaW) / 2,
-        maxY: (worldH + arenaH) / 2,
-      }
-    : { minX: 40, minY: 40, maxX: worldW - 40, maxY: worldH - 40 };
-  s.player.pos.x = clamp(s.player.pos.x, bounds.minX + PLAYER_RADIUS, bounds.maxX - PLAYER_RADIUS);
-  s.player.pos.y = clamp(s.player.pos.y, bounds.minY + PLAYER_RADIUS, bounds.maxY - PLAYER_RADIUS);
+  if (s.inArena && arenaRadius) {
+    // Circular arena bounds
+    const centerX = worldW / 2;
+    const centerY = worldH / 2;
+    const dx = s.player.pos.x - centerX;
+    const dy = s.player.pos.y - centerY;
+    const dist = Math.hypot(dx, dy);
+    const maxDist = arenaRadius - PLAYER_RADIUS;
+    if (dist > maxDist) {
+      const angle = Math.atan2(dy, dx);
+      s.player.pos.x = centerX + Math.cos(angle) * maxDist;
+      s.player.pos.y = centerY + Math.sin(angle) * maxDist;
+    }
+  } else if (s.inArena) {
+    // Rectangular arena bounds (outpost)
+    const bounds = {
+      minX: (worldW - arenaW) / 2,
+      minY: (worldH - arenaH) / 2,
+      maxX: (worldW + arenaW) / 2,
+      maxY: (worldH + arenaH) / 2,
+    };
+    s.player.pos.x = clamp(s.player.pos.x, bounds.minX + PLAYER_RADIUS, bounds.maxX - PLAYER_RADIUS);
+    s.player.pos.y = clamp(s.player.pos.y, bounds.minY + PLAYER_RADIUS, bounds.maxY - PLAYER_RADIUS);
+  } else {
+    // World bounds
+    s.player.pos.x = clamp(s.player.pos.x, 40 + PLAYER_RADIUS, worldW - 40 - PLAYER_RADIUS);
+    s.player.pos.y = clamp(s.player.pos.y, 40 + PLAYER_RADIUS, worldH - 40 - PLAYER_RADIUS);
+  }
 
   s.player.invuln = Math.max(0, s.player.invuln - dt);
 }

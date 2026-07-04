@@ -123,6 +123,7 @@ export type MapConfig = {
   worldHeight: number;
   arenaWidth: number;
   arenaHeight: number;
+  arenaRadius?: number;
   playerStart: Vec;
   backgroundColor: string;
   gridColor: string;
@@ -159,6 +160,9 @@ export type HiveMindBoss = Boss & {
   exposed: boolean;
   exposeTimer: number;
   exposeCooldown: number;
+  orbitAngle: number;
+  orbitSpeed: number;
+  orbiting: boolean;
 };
 
 export type MiniBoss = {

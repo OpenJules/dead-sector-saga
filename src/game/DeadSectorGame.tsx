@@ -668,10 +668,19 @@ function update(s: GameState, dt: number) {
 }
 
 function tryShoot(s: GameState) {
-  const w = s.player.inventory[s.player.weaponIndex];
+  const slot = s.player.inventory[s.player.weaponIndex];
+  const w = slot.weapon;
   const now = performance.now();
+  // Can't fire while reloading
+  if (s.player.reloadingSlot === s.player.weaponIndex && s.time < s.player.reloadUntil) return;
   if (now - s.player.lastShot < w.fireRate) return;
+  if (slot.ammo <= 0) {
+    // Auto-reload attempt
+    if (slot.reserve > 0) startReload(s);
+    return;
+  }
   s.player.lastShot = now;
+  slot.ammo -= 1;
   audio.playShoot(w.id);
   for (let i = 0; i < w.bulletsPerShot; i++) {
     const a = s.player.aim + (Math.random() - 0.5) * w.spread * 2;
@@ -681,6 +690,46 @@ function tryShoot(s: GameState) {
       damage: w.damage, life: 1.2, friendly: true, color: w.color, radius: 3,
     });
   }
+  if (slot.ammo === 0 && slot.reserve > 0) startReload(s);
+}
+
+function startReload(s: GameState) {
+  const idx = s.player.weaponIndex;
+  const slot = s.player.inventory[idx];
+  if (slot.ammo >= slot.weapon.magSize || slot.reserve <= 0) return;
+  if (s.player.reloadingSlot === idx && s.time < s.player.reloadUntil) return;
+  s.player.reloadingSlot = idx;
+  s.player.reloadUntil = s.time + slot.weapon.reloadTime;
+}
+
+function finishReloadIfDue(s: GameState) {
+  if (s.player.reloadingSlot < 0) return;
+  if (s.time < s.player.reloadUntil) return;
+  const slot = s.player.inventory[s.player.reloadingSlot];
+  if (!slot) { s.player.reloadingSlot = -1; return; }
+  const need = slot.weapon.magSize - slot.ammo;
+  const take = Math.min(need, slot.reserve);
+  slot.ammo += take;
+  slot.reserve -= take;
+  s.player.reloadingSlot = -1;
+}
+
+function makeSlot(w: Weapon): WeaponSlot {
+  return { weapon: w, ammo: w.magSize, reserve: w.reserveMax };
+}
+
+function refillAmmo(s: GameState, fraction = 1) {
+  for (const slot of s.player.inventory) {
+    slot.reserve = Math.min(slot.weapon.reserveMax, slot.reserve + Math.ceil(slot.weapon.reserveMax * fraction));
+  }
+}
+
+function formatTime(t: number) {
+  const total = Math.max(0, t);
+  const m = Math.floor(total / 60);
+  const sec = Math.floor(total % 60);
+  const cs = Math.floor((total * 100) % 100);
+  return `${m.toString().padStart(2, "0")}:${sec.toString().padStart(2, "0")}.${cs.toString().padStart(2, "0")}`;
 }
 
 function spawnZombie(s: GameState) {

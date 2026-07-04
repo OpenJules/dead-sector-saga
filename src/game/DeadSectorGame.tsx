@@ -842,7 +842,11 @@ function tryInteract(s: GameState, forceUi: () => void) {
 }
 
 function switchWeapon(s: GameState, i: number) {
-  if (i < s.player.inventory.length) s.player.weaponIndex = i;
+  if (i < s.player.inventory.length) {
+    // Cancel in-progress reload when switching
+    if (s.player.reloadingSlot !== i) s.player.reloadingSlot = -1;
+    s.player.weaponIndex = i;
+  }
 }
 
 function pushToast(s: GameState, msg: string) {

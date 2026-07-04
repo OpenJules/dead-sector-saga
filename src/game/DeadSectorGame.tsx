@@ -467,8 +467,8 @@ function update(s: GameState, dt: number) {
   if (!s.inArena) {
     for (const st of s.stations) {
       if (dist(s.player.pos, st.pos) < 60) {
-        const owned = s.player.inventory.some(w => w.id === st.weapon.id);
-        s.interactHint = owned ? `${st.weapon.name} owned` : `Buy ${st.weapon.name} — $${st.weapon.cost}`;
+        const owned = s.player.inventory.some(slot => slot.weapon.id === st.weapon.id);
+        s.interactHint = owned ? `${st.weapon.name} owned — refill ammo` : `Buy ${st.weapon.name} — $${st.weapon.cost}`;
         s.interactTarget = { kind: "station", ref: st };
         break;
       }

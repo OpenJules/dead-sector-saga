@@ -30,6 +30,7 @@ import { TitleScreen } from "./ui/TitleScreen";
 import { Overlay } from "./ui/Overlay";
 import type { MapId } from "./types";
 import { spawnMiniBoss, updateMiniBoss } from "./systems/miniboss";
+import { updateMiniGolf } from "./systems/minigolf";
 
 export default function DeadSectorGame() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -130,6 +131,33 @@ export default function DeadSectorGame() {
       s.player.invuln = Math.max(0, s.player.invuln - dt);
       separateZombies(s);
       updateBullets(s, dt);
+      updateMiniGolf(s, dt);
+
+      // Bullet-to-golf-ball collision
+      if (s.miniGolf && !s.miniGolf.complete) {
+        for (const b of s.bullets) {
+          if (!b.friendly || b.life <= 0) continue;
+          for (const ball of s.miniGolf.balls) {
+            if (!ball.active || ball.inHole) continue;
+            const d = Math.hypot(b.pos.x - ball.pos.x, b.pos.y - ball.pos.y);
+            if (d < ball.radius + b.radius) {
+              ball.vel.x = b.vel.x * 0.6;
+              ball.vel.y = b.vel.y * 0.6;
+              b.life = 0;
+              for (let i = 0; i < 4; i++) {
+                s.particles.push({
+                  pos: { x: ball.pos.x, y: ball.pos.y },
+                  vel: { x: (Math.random() - 0.5) * 80, y: (Math.random() - 0.5) * 80 },
+                  life: 0.3,
+                  color: "#ffffff",
+                });
+              }
+              break;
+            }
+          }
+        }
+      }
+
       updateKillQuests(s);
       updateRGBQuest(s);
       updateParticles(s, dt);

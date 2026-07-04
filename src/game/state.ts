@@ -69,5 +69,26 @@ export function createInitialState(mapId: MapId = "outpost"): GameState {
     miniBoss: null,
     hasGeneratorKey: false,
     soulBoxComplete: false,
+    miniGolf: map.miniGolf
+      ? {
+          bounds: { ...map.miniGolf.bounds },
+          balls: map.miniGolf.balls.map((ball) => ({
+            pos: { ...ball.pos },
+            vel: { x: 0, y: 0 },
+            radius: 8,
+            active: true,
+            inHole: false,
+            holeId: ball.holeId,
+          })),
+          holes: map.miniGolf.holes.map((hole) => ({
+            pos: { ...hole.pos },
+            radius: 14,
+            id: hole.id,
+            ballInHole: false,
+          })),
+          walls: map.miniGolf.walls.map((w) => ({ ...w })),
+          complete: false,
+        }
+      : null,
   };
 }

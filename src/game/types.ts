@@ -44,7 +44,7 @@ export type Station = { pos: Vec; weapon: Weapon; label: string };
 export type QuestStep = {
   id: string;
   text: string;
-  type: "kill" | "reach" | "buy" | "interact" | "shoot" | "soulbox" | "killminiboss";
+  type: "kill" | "reach" | "buy" | "interact" | "shoot" | "soulbox" | "killminiboss" | "minigolf";
   target?: number;
   progress?: number;
   location?: Vec;
@@ -144,6 +144,12 @@ export type MapConfig = {
   bossHp: number;
   bossRadius: number;
   easterEggType: "rgb" | "labvault";
+  miniGolf?: {
+    bounds: { x: number; y: number; width: number; height: number };
+    balls: { pos: Vec; holeId: number }[];
+    holes: { pos: Vec; id: number }[];
+    walls: { x: number; y: number; width: number; height: number }[];
+  };
 };
 
 export type Generator = {
@@ -174,6 +180,37 @@ export type MiniBoss = {
   radius: number;
   attackTimer: number;
   phase: number;
+};
+
+export type GolfBall = {
+  pos: Vec;
+  vel: Vec;
+  radius: number;
+  active: boolean;
+  inHole: boolean;
+  holeId: number;
+};
+
+export type GolfHole = {
+  pos: Vec;
+  radius: number;
+  id: number;
+  ballInHole: boolean;
+};
+
+export type MiniGolfWall = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+export type MiniGolfArea = {
+  bounds: { x: number; y: number; width: number; height: number };
+  balls: GolfBall[];
+  holes: GolfHole[];
+  walls: MiniGolfWall[];
+  complete: boolean;
 };
 
 export type GameState = {
@@ -226,4 +263,5 @@ export type GameState = {
   miniBoss: MiniBoss | null;
   hasGeneratorKey: boolean;
   soulBoxComplete: boolean;
+  miniGolf: MiniGolfArea | null;
 };

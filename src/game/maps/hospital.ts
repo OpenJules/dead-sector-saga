@@ -151,10 +151,54 @@ export const HOSPITAL_MAP: MapConfig = {
         },
       ],
     },
+    {
+      id: "sq_minigolf",
+      title: "Mini Golf Challenge",
+      accepted: true,
+      done: false,
+      reward: "FREE_WEAPON",
+      steps: [
+        {
+          id: "mg1",
+          text: "Find the Mini Golf Course",
+          type: "reach",
+          location: { x: 400, y: 1800 },
+          done: false,
+        },
+        {
+          id: "mg2",
+          text: "Sink Ball 1 in Hole 1",
+          type: "minigolf",
+          done: false,
+        },
+        {
+          id: "mg3",
+          text: "Sink Ball 2 in Hole 2",
+          type: "minigolf",
+          done: false,
+        },
+      ],
+    },
   ],
   gatePos: { x: 1600, y: 700 },
   bossType: "hivemind",
   bossHp: 1800,
   bossRadius: 50,
   easterEggType: "labvault",
+  miniGolf: {
+    bounds: { x: 150, y: 1650, width: 550, height: 400 },
+    balls: [
+      { pos: { x: 250, y: 1750 }, holeId: 0 },
+      { pos: { x: 250, y: 1950 }, holeId: 1 },
+    ],
+    holes: [
+      { pos: { x: 580, y: 1750 }, id: 0 },
+      { pos: { x: 580, y: 1950 }, id: 1 },
+    ],
+    walls: [
+      { x: 350, y: 1680, width: 20, height: 140 },
+      { x: 450, y: 1820, width: 20, height: 160 },
+      { x: 300, y: 1880, width: 100, height: 20 },
+    ],
+  },
 };

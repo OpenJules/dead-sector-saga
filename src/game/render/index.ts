@@ -7,6 +7,7 @@ import { drawCrate } from "./effects";
 import { drawFlashlight, drawGenerator } from "./flashlight";
 import { drawHiveMind } from "../systems/hivemind";
 import { drawMiniBoss } from "../systems/miniboss";
+import { drawMiniGolf } from "./minigolf";
 import { getMapConfig } from "../maps";
 
 export function render(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, s: GameState) {
@@ -78,6 +79,10 @@ export function render(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement,
   }
 
   if (!s.inArena) drawGate(ctx, s);
+
+  if (!s.inArena && s.selectedMap === "hospital") {
+    drawMiniGolf(ctx, s);
+  }
 
   for (const z of s.zombies) drawZombie(ctx, z);
 

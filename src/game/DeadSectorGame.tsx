@@ -103,6 +103,7 @@ export default function DeadSectorGame() {
     const onDown = (e: KeyboardEvent) => {
       stateRef.current.keys[e.key.toLowerCase()] = true;
       if (e.key.toLowerCase() === "e") tryInteract(stateRef.current, forceUi);
+      if (e.key.toLowerCase() === "r") startReload(stateRef.current);
       if (e.key === "1") switchWeapon(stateRef.current, 0);
       if (e.key === "2") switchWeapon(stateRef.current, 1);
       if (e.key === "3") switchWeapon(stateRef.current, 2);

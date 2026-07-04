@@ -2,10 +2,10 @@ export class AudioEngine {
   private ctx: AudioContext;
   private mainGain: GainNode;
   private musicGain: GainNode;
-  private currentMusic: { 
-    osc: OscillatorNode[], 
-    gain: GainNode, 
-    interval: number | null 
+  private currentMusic: {
+    osc: OscillatorNode[],
+    gain: GainNode,
+    interval: ReturnType<typeof setInterval> | null
   } | null = null;
 
   constructor() {

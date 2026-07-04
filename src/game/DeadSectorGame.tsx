@@ -192,7 +192,10 @@ export default function DeadSectorGame() {
   }, [screen]);
 
   const s = stateRef.current;
-  const activeWeapon = s.player.inventory[s.player.weaponIndex];
+  const activeSlot = s.player.inventory[s.player.weaponIndex];
+  const activeWeapon = activeSlot.weapon;
+  const isReloading = s.player.reloadingSlot === s.player.weaponIndex && s.time < s.player.reloadUntil;
+  const reloadPct = isReloading ? 1 - Math.max(0, (s.player.reloadUntil - s.time) / activeWeapon.reloadTime) : 0;
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-background text-foreground">
@@ -202,10 +205,10 @@ export default function DeadSectorGame() {
         <TitleScreen onStart={() => { stateRef.current = createInitialState(); setScreen("playing"); }} />
       )}
       {screen === "dead" && (
-        <Overlay title="YOU DIED" subtitle="The sector claims another." action="Retry" onAction={() => { stateRef.current = createInitialState(); setScreen("playing"); }} />
+        <Overlay title="YOU DIED" subtitle={`The sector claims another. Time: ${formatTime(s.time)}`} action="Retry" onAction={() => { stateRef.current = createInitialState(); setScreen("playing"); }} />
       )}
       {screen === "win" && (
-        <Overlay title="SECTOR CLEARED" subtitle="The underworld falls silent. For now." action="Play Again" onAction={() => { stateRef.current = createInitialState(); setScreen("playing"); }} />
+        <Overlay title="SECTOR CLEARED" subtitle={`The underworld falls silent. Clear time: ${formatTime(s.time)}`} action="Play Again" onAction={() => { stateRef.current = createInitialState(); setScreen("playing"); }} />
       )}
 
       {screen === "playing" && (
@@ -227,10 +230,24 @@ export default function DeadSectorGame() {
           <span className="text-muted-foreground">WEAPON:</span>{" "}
           <span style={{ color: activeWeapon.color }}>{activeWeapon.name}</span>
         </div>
+        <div className="mt-1 text-xs">
+          <span className="text-muted-foreground">AMMO:</span>{" "}
+          {isReloading ? (
+            <span className="text-accent">RELOADING</span>
+          ) : (
+            <span className="text-hud">{activeSlot.ammo}<span className="text-muted-foreground">/{activeWeapon.magSize}</span> <span className="text-muted-foreground">[{activeSlot.reserve}]</span></span>
+          )}
+          <span className="ml-2 text-[10px] text-muted-foreground">R to reload</span>
+        </div>
+        {isReloading && (
+          <div className="mt-1 h-1 w-40 overflow-hidden rounded-sm bg-background">
+            <div className="h-full bg-accent" style={{ width: `${reloadPct * 100}%` }} />
+          </div>
+        )}
         <div className="mt-1 flex gap-1">
-          {s.player.inventory.map((w, i) => (
-            <span key={w.id} className={`rounded-sm border px-1.5 py-0.5 text-[10px] ${i === s.player.weaponIndex ? "border-primary text-primary" : "border-border text-muted-foreground"}`}>
-              {i + 1} {w.name.split(" ")[0]}
+          {s.player.inventory.map((slot, i) => (
+            <span key={slot.weapon.id} className={`rounded-sm border px-1.5 py-0.5 text-[10px] ${i === s.player.weaponIndex ? "border-primary text-primary" : "border-border text-muted-foreground"}`}>
+              {i + 1} {slot.weapon.name.split(" ")[0]}
             </span>
           ))}
         </div>

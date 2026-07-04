@@ -417,7 +417,7 @@ function createInitialState() {
     spawnTimer: 0,
     toasts: [] as { msg: string; life: number }[],
     interactHint: "" as string,
-    interactTarget: null as null | { kind: "station" | "npc" | "gate" | "worldobject"; ref: unknown },
+    interactTarget: null as null | { kind: "station" | "npc" | "gate" | "worldobject" | "ammo-crate"; ref: unknown },
     camera: { x: 0, y: 0 },
     inArena: false,
     boss: null as Boss | null,
@@ -465,32 +465,46 @@ function update(s: GameState, dt: number) {
   // Interaction hint
   s.interactHint = "";
   s.interactTarget = null;
-  if (!s.inArena) {
-    for (const st of s.stations) {
-      if (dist(s.player.pos, st.pos) < 60) {
-        const owned = s.player.inventory.some(slot => slot.weapon.id === st.weapon.id);
-        s.interactHint = owned ? `${st.weapon.name} owned — refill ammo` : `Buy ${st.weapon.name} — $${st.weapon.cost}`;
-        s.interactTarget = { kind: "station", ref: st };
-        break;
+    if (s.inArena) {
+      for (const st of s.stations) {
+        if (dist(s.player.pos, st.pos) < 60) {
+          const owned = s.player.inventory.some(slot => slot.weapon.id === st.weapon.id);
+          s.interactHint = owned ? `${st.weapon.name} owned — refill ammo` : `Buy ${st.weapon.name} — $${st.weapon.cost}`;
+          s.interactTarget = { kind: "station", ref: st };
+          break;
+        }
+      }
+      // Boss Arena Ammo Crate
+      if (!s.interactTarget && dist(s.player.pos, { x: WORLD_W / 2, y: WORLD_H / 2 }) < 60) {
+        s.interactHint = "Ammo Refill Crate";
+        s.interactTarget = { kind: "ammo-crate", ref: null };
+      }
+    } else {
+      for (const st of s.stations) {
+        if (dist(s.player.pos, st.pos) < 60) {
+          const owned = s.player.inventory.some(slot => slot.weapon.id === st.weapon.id);
+          s.interactHint = owned ? `${st.weapon.name} owned — refill ammo` : `Buy ${st.weapon.name} — $${st.weapon.cost}`;
+          s.interactTarget = { kind: "station", ref: st };
+          break;
+        }
+      }
+      if (!s.interactTarget) for (const n of s.npcs) {
+        if (dist(s.player.pos, n.pos) < 55) {
+          s.interactHint = `${n.name}: "Greetings"`;
+          s.interactTarget = { kind: "npc", ref: n };
+          break;
+        }
+      }
+      if (!s.interactTarget && dist(s.player.pos, s.gate) < 70) {
+        const step = s.mainQuest[4];
+        if (step && !step.done && s.mainQuest.slice(0, 4).every(q => q.done)) {
+          s.interactHint = "Enter the Underworld Gate";
+          s.interactTarget = { kind: "gate", ref: null };
+        } else {
+          s.interactHint = "Underworld Gate — sealed";
+        }
       }
     }
-    if (!s.interactTarget) for (const n of s.npcs) {
-      if (dist(s.player.pos, n.pos) < 55) {
-        s.interactHint = `${n.name}: "Greetings"`;
-        s.interactTarget = { kind: "npc", ref: n };
-        break;
-      }
-    }
-    if (!s.interactTarget && dist(s.player.pos, s.gate) < 70) {
-      const step = s.mainQuest[4];
-      if (step && !step.done && s.mainQuest.slice(0, 4).every(q => q.done)) {
-        s.interactHint = "Enter the Underworld Gate";
-        s.interactTarget = { kind: "gate", ref: null };
-      } else {
-        s.interactHint = "Underworld Gate — sealed";
-      }
-    }
-  }
 
   // Reach quest checks
   updateReachQuests(s);
@@ -837,6 +851,10 @@ function tryInteract(s: GameState, forceUi: () => void) {
       step.done = true;
       enterArena(s);
     }
+  } else if (t.kind === "ammo-crate") {
+    refillAmmo(s, 1.0);
+    pushToast(s, "Ammo fully refilled!");
+    audio.playInteract();
   }
   forceUi();
 }
@@ -974,6 +992,12 @@ function render(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, s: Gam
 
   if (s.inArena) drawArena(ctx, s);
   else drawWorldMarkers(ctx, s);
+
+  if (s.inArena) {
+    // Draw Ammo Crate
+    const cratePos = { x: WORLD_W / 2, y: WORLD_H / 2 };
+    drawCrate(ctx, cratePos);
+  }
 
   if (!s.inArena) {
     for (const st of s.stations) drawStation(ctx, st, s);

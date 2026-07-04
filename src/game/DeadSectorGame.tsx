@@ -1225,7 +1225,7 @@ function drawPlayer(ctx: CanvasRenderingContext2D, s: GameState) {
   ctx.beginPath(); ctx.arc(p.x, p.y, PLAYER_RADIUS, 0, Math.PI * 2); ctx.fill();
   ctx.strokeStyle = "#000"; ctx.lineWidth = 2; ctx.stroke();
   // gun
-  const w = s.player.inventory[s.player.weaponIndex];
+  const w = s.player.inventory[s.player.weaponIndex].weapon;
   ctx.save();
   ctx.translate(p.x, p.y);
   ctx.rotate(s.player.aim);

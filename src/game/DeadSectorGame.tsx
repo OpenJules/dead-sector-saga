@@ -56,7 +56,7 @@ const WEAPONS: Record<string, Weapon> = {
 };
 
   const MAIN_QUEST: QuestStep[] = [
-    { id: "m1", text: "Reach the Outpost Radio (NW)", type: "reach", location: { x: 300, y: 300 }, done: false },
+    { id: "m1", text: "Hold the Outpost Radio (NW) for 10s", type: "reach", location: { x: 300, y: 300 }, done: false },
     { id: "m2", text: "Purge the horde: kill 15 zombies", type: "kill", target: 15, progress: 0, done: false },
     { id: "m3", text: "Buy a new weapon at any station", type: "buy", done: false },
     { id: "m4", text: "Slay 7 zombies near the Sector Key (SE ruin)", type: "kill", target: 7, progress: 0, location: { x: 2050, y: 1500 }, done: false },
@@ -370,6 +370,7 @@ type GameState = ReturnType<typeof createInitialState>;
 
 function createInitialState() {
   const player = {
+
     pos: { x: WORLD_W / 2 - 300, y: WORLD_H / 2 } as Vec,
     hp: 100, maxHp: 100,
     cash: 150,
@@ -423,6 +424,7 @@ function createInitialState() {
     boss: null as Boss | null,
     won: false,
     time: 0,
+    holdTimer: 0,
   };
 }
 
@@ -618,7 +620,17 @@ function update(s: GameState, dt: number) {
       s.killedInRound++;
       // main kill quest
       const killStep = s.mainQuest.find(q => q.type === "kill" && !q.done);
-      if (killStep) { killStep.progress = (killStep.progress ?? 0) + 1; if (killStep.progress >= (killStep.target ?? 0)) { killStep.done = true; pushToast(s, "Main step complete"); } }
+      if (killStep) { 
+        if (killStep.location) {
+          if (dist(z.pos, killStep.location) < 200) {
+            killStep.progress = (killStep.progress ?? 0) + 1; 
+            if (killStep.progress >= (killStep.target ?? 0)) { killStep.done = true; pushToast(s, "Main step complete"); }
+          }
+        } else {
+          killStep.progress = (killStep.progress ?? 0) + 1; 
+          if (killStep.progress >= (killStep.target ?? 0)) { killStep.done = true; pushToast(s, "Main step complete"); }
+        }
+      }
       // side quests
       for (const sq of s.sideQuests) {
         if (!sq.accepted || sq.done) continue;
@@ -782,7 +794,23 @@ function updateReachQuests(s: GameState) {
     const idx = s.mainQuest.indexOf(q);
     if (idx > 0 && !s.mainQuest[idx - 1].done) continue;
     if (idx === 4) continue; // gate handled via interact
-    if (dist(s.player.pos, q.location) < 55) { q.done = true; pushToast(s, "Main step complete"); }
+    
+    if (idx === 0) {
+      // Outpost Radio hold logic
+      if (dist(s.player.pos, q.location) < 55) {
+        s.holdTimer += 0.016; // approx 60fps dt
+        if (s.holdTimer >= 10) {
+          q.done = true;
+          s.holdTimer = 0;
+          pushToast(s, "Main step complete");
+        }
+      } else {
+        s.holdTimer = 0;
+      }
+    } else if (dist(s.player.pos, q.location) < 55) {
+      q.done = true;
+      pushToast(s, "Main step complete");
+    }
   }
   for (const sq of s.sideQuests) {
     if (!sq.accepted || sq.done) continue;
@@ -1032,6 +1060,17 @@ function render(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, s: Gam
       ctx.strokeStyle = "white"; ctx.lineWidth = 1; ctx.stroke();
       ctx.restore();
     }
+  }
+
+  // Draw Hold Progress for Outpost Radio
+  const firstStep = s.mainQuest[0];
+  if (!firstStep.done && !s.inArena) {
+    const loc = firstStep.location!;
+    ctx.beginPath();
+    ctx.strokeStyle = "rgba(232, 197, 106, 0.5)";
+    ctx.lineWidth = 3;
+    ctx.arc(loc.x, loc.y, 55, 0, (s.holdTimer / 10) * Math.PI * 2);
+    ctx.stroke();
   }
 
   // Draw Altar for the Easter Egg

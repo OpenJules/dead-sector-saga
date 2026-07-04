@@ -14,7 +14,11 @@ type Weapon = {
   bulletsPerShot: number;
   cost: number;
   color: string;
+  magSize: number;
+  reserveMax: number;
+  reloadTime: number; // seconds
 };
+type WeaponSlot = { weapon: Weapon; ammo: number; reserve: number };
 type Bullet = { pos: Vec; vel: Vec; damage: number; life: number; friendly: boolean; color: string; radius: number };
 type Zombie = { pos: Vec; hp: number; maxHp: number; speed: number; damage: number; radius: number; kind: "walker" | "runner" | "brute" };
 type Station = { pos: Vec; weapon: Weapon; label: string };

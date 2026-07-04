@@ -1140,7 +1140,7 @@ function drawStation(ctx: CanvasRenderingContext2D, st: Station, s: GameState) {
   ctx.fillText(st.label.toUpperCase(), 0, -2);
   ctx.fillStyle = "#e8c56a";
   ctx.font = "10px 'JetBrains Mono', monospace";
-  const owned = s.player.inventory.some(w => w.id === st.weapon.id);
+  const owned = s.player.inventory.some(slot => slot.weapon.id === st.weapon.id);
   ctx.fillText(owned ? "OWNED" : `$${st.weapon.cost}`, 0, 12);
   ctx.restore();
 }

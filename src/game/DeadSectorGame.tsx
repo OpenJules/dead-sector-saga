@@ -430,6 +430,7 @@ function createInitialState() {
 // ---------- Update ----------
 function update(s: GameState, dt: number) {
   s.time += dt;
+  finishReloadIfDue(s);
 
   // Player movement
   const speed = PLAYER_SPEED;

@@ -14,7 +14,11 @@ type Weapon = {
   bulletsPerShot: number;
   cost: number;
   color: string;
+  magSize: number;
+  reserveMax: number;
+  reloadTime: number; // seconds
 };
+type WeaponSlot = { weapon: Weapon; ammo: number; reserve: number };
 type Bullet = { pos: Vec; vel: Vec; damage: number; life: number; friendly: boolean; color: string; radius: number };
 type Zombie = { pos: Vec; hp: number; maxHp: number; speed: number; damage: number; radius: number; kind: "walker" | "runner" | "brute" };
 type Station = { pos: Vec; weapon: Weapon; label: string };
@@ -44,11 +48,11 @@ const PLAYER_SPEED = 220;
 const PLAYER_RADIUS = 14;
 
 const WEAPONS: Record<string, Weapon> = {
-  pistol:   { id: "pistol",   name: "Rusty Pistol",  damage: 20, fireRate: 320, bulletSpeed: 620, spread: 0.05, bulletsPerShot: 1, cost: 0,    color: "#e8c56a" },
-  smg:      { id: "smg",      name: "Scavenger SMG", damage: 14, fireRate: 110, bulletSpeed: 720, spread: 0.12, bulletsPerShot: 1, cost: 400,  color: "#7ad0ff" },
-  shotgun:  { id: "shotgun",  name: "Trench Shotgun",damage: 18, fireRate: 550, bulletSpeed: 700, spread: 0.35, bulletsPerShot: 6, cost: 800,  color: "#ff9b5a" },
-  rifle:    { id: "rifle",    name: "Marksman Rifle",damage: 70, fireRate: 480, bulletSpeed: 1000,spread: 0.02, bulletsPerShot: 1, cost: 1400, color: "#ff5a5a" },
-  plasma:   { id: "plasma",   name: "Toxin Blaster", damage: 40, fireRate: 180, bulletSpeed: 820, spread: 0.06, bulletsPerShot: 1, cost: 2500, color: "#8bff6a" },
+  pistol:   { id: "pistol",   name: "Rusty Pistol",  damage: 20, fireRate: 320, bulletSpeed: 620, spread: 0.05, bulletsPerShot: 1, cost: 0,    color: "#e8c56a", magSize: 12, reserveMax: 96,  reloadTime: 1.0 },
+  smg:      { id: "smg",      name: "Scavenger SMG", damage: 14, fireRate: 110, bulletSpeed: 720, spread: 0.12, bulletsPerShot: 1, cost: 400,  color: "#7ad0ff", magSize: 30, reserveMax: 120, reloadTime: 1.5 },
+  shotgun:  { id: "shotgun",  name: "Trench Shotgun",damage: 18, fireRate: 550, bulletSpeed: 700, spread: 0.35, bulletsPerShot: 6, cost: 800,  color: "#ff9b5a", magSize: 6,  reserveMax: 36,  reloadTime: 2.0 },
+  rifle:    { id: "rifle",    name: "Marksman Rifle",damage: 70, fireRate: 480, bulletSpeed: 1000,spread: 0.02, bulletsPerShot: 1, cost: 1400, color: "#ff5a5a", magSize: 5,  reserveMax: 30,  reloadTime: 2.0 },
+  plasma:   { id: "plasma",   name: "Toxin Blaster", damage: 40, fireRate: 180, bulletSpeed: 820, spread: 0.06, bulletsPerShot: 1, cost: 2500, color: "#8bff6a", magSize: 20, reserveMax: 80,  reloadTime: 1.8 },
 };
 
 const MAIN_QUEST: QuestStep[] = [
@@ -99,6 +103,7 @@ export default function DeadSectorGame() {
     const onDown = (e: KeyboardEvent) => {
       stateRef.current.keys[e.key.toLowerCase()] = true;
       if (e.key.toLowerCase() === "e") tryInteract(stateRef.current, forceUi);
+      if (e.key.toLowerCase() === "r") startReload(stateRef.current);
       if (e.key === "1") switchWeapon(stateRef.current, 0);
       if (e.key === "2") switchWeapon(stateRef.current, 1);
       if (e.key === "3") switchWeapon(stateRef.current, 2);
@@ -188,7 +193,10 @@ export default function DeadSectorGame() {
   }, [screen]);
 
   const s = stateRef.current;
-  const activeWeapon = s.player.inventory[s.player.weaponIndex];
+  const activeSlot = s.player.inventory[s.player.weaponIndex];
+  const activeWeapon = activeSlot.weapon;
+  const isReloading = s.player.reloadingSlot === s.player.weaponIndex && s.time < s.player.reloadUntil;
+  const reloadPct = isReloading ? 1 - Math.max(0, (s.player.reloadUntil - s.time) / activeWeapon.reloadTime) : 0;
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-background text-foreground">
@@ -198,10 +206,10 @@ export default function DeadSectorGame() {
         <TitleScreen onStart={() => { stateRef.current = createInitialState(); setScreen("playing"); }} />
       )}
       {screen === "dead" && (
-        <Overlay title="YOU DIED" subtitle="The sector claims another." action="Retry" onAction={() => { stateRef.current = createInitialState(); setScreen("playing"); }} />
+        <Overlay title="YOU DIED" subtitle={`The sector claims another. Time: ${formatTime(s.time)}`} action="Retry" onAction={() => { stateRef.current = createInitialState(); setScreen("playing"); }} />
       )}
       {screen === "win" && (
-        <Overlay title="SECTOR CLEARED" subtitle="The underworld falls silent. For now." action="Play Again" onAction={() => { stateRef.current = createInitialState(); setScreen("playing"); }} />
+        <Overlay title="SECTOR CLEARED" subtitle={`The underworld falls silent. Clear time: ${formatTime(s.time)}`} action="Play Again" onAction={() => { stateRef.current = createInitialState(); setScreen("playing"); }} />
       )}
 
       {screen === "playing" && (
@@ -223,19 +231,34 @@ export default function DeadSectorGame() {
           <span className="text-muted-foreground">WEAPON:</span>{" "}
           <span style={{ color: activeWeapon.color }}>{activeWeapon.name}</span>
         </div>
+        <div className="mt-1 text-xs">
+          <span className="text-muted-foreground">AMMO:</span>{" "}
+          {isReloading ? (
+            <span className="text-accent">RELOADING</span>
+          ) : (
+            <span className="text-hud">{activeSlot.ammo}<span className="text-muted-foreground">/{activeWeapon.magSize}</span> <span className="text-muted-foreground">[{activeSlot.reserve}]</span></span>
+          )}
+          <span className="ml-2 text-[10px] text-muted-foreground">R to reload</span>
+        </div>
+        {isReloading && (
+          <div className="mt-1 h-1 w-40 overflow-hidden rounded-sm bg-background">
+            <div className="h-full bg-accent" style={{ width: `${reloadPct * 100}%` }} />
+          </div>
+        )}
         <div className="mt-1 flex gap-1">
-          {s.player.inventory.map((w, i) => (
-            <span key={w.id} className={`rounded-sm border px-1.5 py-0.5 text-[10px] ${i === s.player.weaponIndex ? "border-primary text-primary" : "border-border text-muted-foreground"}`}>
-              {i + 1} {w.name.split(" ")[0]}
+          {s.player.inventory.map((slot, i) => (
+            <span key={slot.weapon.id} className={`rounded-sm border px-1.5 py-0.5 text-[10px] ${i === s.player.weaponIndex ? "border-primary text-primary" : "border-border text-muted-foreground"}`}>
+              {i + 1} {slot.weapon.name.split(" ")[0]}
             </span>
           ))}
         </div>
       </div>
 
-      {/* Center: Round Counter */}
+      {/* Center: Round Counter + Timer */}
       <div className="absolute top-4 left-1/2 -translate-x-1/2 text-center">
         <div className="text-4xl font-bold text-accent tracking-tighter italic">ROUND {s.round}</div>
         <div className="text-xs text-muted-foreground">KILLS: {s.killedInRound}/{s.zombiesToKill}</div>
+        <div className="mt-1 font-mono text-lg tabular-nums text-hud">{formatTime(s.time)}</div>
       </div>
 
       {/* Right: Quests */}
@@ -351,11 +374,13 @@ function createInitialState() {
     pos: { x: WORLD_W / 2 - 300, y: WORLD_H / 2 } as Vec,
     hp: 100, maxHp: 100,
     cash: 150,
-    inventory: [WEAPONS.pistol] as Weapon[],
+    inventory: [makeSlot(WEAPONS.pistol)] as WeaponSlot[],
     weaponIndex: 0,
     lastShot: 0,
     aim: 0,
     invuln: 0,
+    reloadUntil: 0,
+    reloadingSlot: -1,
   };
   const round = 1;
   const zombiesToKill = 10;
@@ -405,6 +430,7 @@ function createInitialState() {
 // ---------- Update ----------
 function update(s: GameState, dt: number) {
   s.time += dt;
+  finishReloadIfDue(s);
 
   // Player movement
   const speed = PLAYER_SPEED;
@@ -443,8 +469,8 @@ function update(s: GameState, dt: number) {
   if (!s.inArena) {
     for (const st of s.stations) {
       if (dist(s.player.pos, st.pos) < 60) {
-        const owned = s.player.inventory.some(w => w.id === st.weapon.id);
-        s.interactHint = owned ? `${st.weapon.name} owned` : `Buy ${st.weapon.name} — $${st.weapon.cost}`;
+        const owned = s.player.inventory.some(slot => slot.weapon.id === st.weapon.id);
+        s.interactHint = owned ? `${st.weapon.name} owned — refill ammo` : `Buy ${st.weapon.name} — $${st.weapon.cost}`;
         s.interactTarget = { kind: "station", ref: st };
         break;
       }
@@ -644,10 +670,19 @@ function update(s: GameState, dt: number) {
 }
 
 function tryShoot(s: GameState) {
-  const w = s.player.inventory[s.player.weaponIndex];
+  const slot = s.player.inventory[s.player.weaponIndex];
+  const w = slot.weapon;
   const now = performance.now();
+  // Can't fire while reloading
+  if (s.player.reloadingSlot === s.player.weaponIndex && s.time < s.player.reloadUntil) return;
   if (now - s.player.lastShot < w.fireRate) return;
+  if (slot.ammo <= 0) {
+    // Auto-reload attempt
+    if (slot.reserve > 0) startReload(s);
+    return;
+  }
   s.player.lastShot = now;
+  slot.ammo -= 1;
   audio.playShoot(w.id);
   for (let i = 0; i < w.bulletsPerShot; i++) {
     const a = s.player.aim + (Math.random() - 0.5) * w.spread * 2;
@@ -657,6 +692,46 @@ function tryShoot(s: GameState) {
       damage: w.damage, life: 1.2, friendly: true, color: w.color, radius: 3,
     });
   }
+  if (slot.ammo === 0 && slot.reserve > 0) startReload(s);
+}
+
+function startReload(s: GameState) {
+  const idx = s.player.weaponIndex;
+  const slot = s.player.inventory[idx];
+  if (slot.ammo >= slot.weapon.magSize || slot.reserve <= 0) return;
+  if (s.player.reloadingSlot === idx && s.time < s.player.reloadUntil) return;
+  s.player.reloadingSlot = idx;
+  s.player.reloadUntil = s.time + slot.weapon.reloadTime;
+}
+
+function finishReloadIfDue(s: GameState) {
+  if (s.player.reloadingSlot < 0) return;
+  if (s.time < s.player.reloadUntil) return;
+  const slot = s.player.inventory[s.player.reloadingSlot];
+  if (!slot) { s.player.reloadingSlot = -1; return; }
+  const need = slot.weapon.magSize - slot.ammo;
+  const take = Math.min(need, slot.reserve);
+  slot.ammo += take;
+  slot.reserve -= take;
+  s.player.reloadingSlot = -1;
+}
+
+function makeSlot(w: Weapon): WeaponSlot {
+  return { weapon: w, ammo: w.magSize, reserve: w.reserveMax };
+}
+
+function refillAmmo(s: GameState, fraction = 1) {
+  for (const slot of s.player.inventory) {
+    slot.reserve = Math.min(slot.weapon.reserveMax, slot.reserve + Math.ceil(slot.weapon.reserveMax * fraction));
+  }
+}
+
+function formatTime(t: number) {
+  const total = Math.max(0, t);
+  const m = Math.floor(total / 60);
+  const sec = Math.floor(total % 60);
+  const cs = Math.floor((total * 100) % 100);
+  return `${m.toString().padStart(2, "0")}:${sec.toString().padStart(2, "0")}.${cs.toString().padStart(2, "0")}`;
 }
 
 function spawnZombie(s: GameState) {
@@ -699,7 +774,8 @@ function updateReachQuests(s: GameState) {
       sq.done = true;
       const amount = typeof sq.reward === "number" ? sq.reward : 0;
       s.player.cash += amount;
-      pushToast(s, `+$${amount} — ${sq.title} complete`);
+      refillAmmo(s, 0.5);
+      pushToast(s, `+$${amount} & ammo refill — ${sq.title} complete`);
       audio.playInteract();
     }
   }
@@ -710,14 +786,23 @@ function tryInteract(s: GameState, forceUi: () => void) {
   const t = s.interactTarget;
   if (t.kind === "station") {
     const st = t.ref as Station;
-    const owned = s.player.inventory.some(w => w.id === st.weapon.id);
-    if (owned) { 
-      pushToast(s, "Already owned"); 
+    const owned = s.player.inventory.some(slot => slot.weapon.id === st.weapon.id);
+    if (owned) {
+      const cost = Math.max(20, Math.floor(st.weapon.cost * 0.15));
+      if (s.player.cash >= cost) {
+        s.player.cash -= cost;
+        const slot = s.player.inventory.find(x => x.weapon.id === st.weapon.id)!;
+        slot.reserve = st.weapon.reserveMax;
+        slot.ammo = st.weapon.magSize;
+        pushToast(s, `Ammo refilled — $${cost}`);
+      } else {
+        pushToast(s, `Refill costs $${cost}`);
+      }
       audio.playInteract();
     }
     else if (s.player.cash >= st.weapon.cost) {
       s.player.cash -= st.weapon.cost;
-      s.player.inventory.push(st.weapon);
+      s.player.inventory.push(makeSlot(st.weapon));
       s.player.weaponIndex = s.player.inventory.length - 1;
       pushToast(s, `Bought ${st.weapon.name}`);
       const buyStep = s.mainQuest.find(q => q.type === "buy" && !q.done);
@@ -758,7 +843,11 @@ function tryInteract(s: GameState, forceUi: () => void) {
 }
 
 function switchWeapon(s: GameState, i: number) {
-  if (i < s.player.inventory.length) s.player.weaponIndex = i;
+  if (i < s.player.inventory.length) {
+    // Cancel in-progress reload when switching
+    if (s.player.reloadingSlot !== i) s.player.reloadingSlot = -1;
+    s.player.weaponIndex = i;
+  }
 }
 
 function pushToast(s: GameState, msg: string) {
@@ -1058,7 +1147,7 @@ function drawStation(ctx: CanvasRenderingContext2D, st: Station, s: GameState) {
   ctx.fillText(st.label.toUpperCase(), 0, -2);
   ctx.fillStyle = "#e8c56a";
   ctx.font = "10px 'JetBrains Mono', monospace";
-  const owned = s.player.inventory.some(w => w.id === st.weapon.id);
+  const owned = s.player.inventory.some(slot => slot.weapon.id === st.weapon.id);
   ctx.fillText(owned ? "OWNED" : `$${st.weapon.cost}`, 0, 12);
   ctx.restore();
 }
@@ -1143,7 +1232,7 @@ function drawPlayer(ctx: CanvasRenderingContext2D, s: GameState) {
   ctx.beginPath(); ctx.arc(p.x, p.y, PLAYER_RADIUS, 0, Math.PI * 2); ctx.fill();
   ctx.strokeStyle = "#000"; ctx.lineWidth = 2; ctx.stroke();
   // gun
-  const w = s.player.inventory[s.player.weaponIndex];
+  const w = s.player.inventory[s.player.weaponIndex].weapon;
   ctx.save();
   ctx.translate(p.x, p.y);
   ctx.rotate(s.player.aim);

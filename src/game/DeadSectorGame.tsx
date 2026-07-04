@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { audio } from "./AudioEngine";
 import { createInitialState } from "./state";
 import { formatTime } from "./utils";
+import { getMapConfig } from "./maps";
 import {
   updatePlayer,
   updatePlayerAim,
@@ -27,12 +28,14 @@ import { render } from "./render/index";
 import { HUD } from "./render/hud";
 import { TitleScreen } from "./ui/TitleScreen";
 import { Overlay } from "./ui/Overlay";
+import type { MapId } from "./types";
 
 export default function DeadSectorGame() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [uiTick, setUiTick] = useState(0);
   const [screen, setScreen] = useState<"title" | "playing" | "dead" | "win">("title");
-  const stateRef = useRef(createInitialState());
+  const [selectedMap, setSelectedMap] = useState<MapId>("outpost");
+  const stateRef = useRef(createInitialState(selectedMap));
 
   const forceUi = useCallback(() => setUiTick((n) => n + 1), []);
 
@@ -182,8 +185,9 @@ export default function DeadSectorGame() {
 
       {screen === "title" && (
         <TitleScreen
-          onStart={() => {
-            stateRef.current = createInitialState();
+          onStart={(mapId: MapId) => {
+            setSelectedMap(mapId);
+            stateRef.current = createInitialState(mapId);
             setScreen("playing");
           }}
         />
@@ -194,7 +198,7 @@ export default function DeadSectorGame() {
           subtitle={`The sector claims another. Time: ${formatTime(s.time)}`}
           action="Retry"
           onAction={() => {
-            stateRef.current = createInitialState();
+            stateRef.current = createInitialState(selectedMap);
             setScreen("playing");
           }}
         />
@@ -205,7 +209,7 @@ export default function DeadSectorGame() {
           subtitle={`The underworld falls silent. Clear time: ${formatTime(s.time)}`}
           action="Play Again"
           onAction={() => {
-            stateRef.current = createInitialState();
+            stateRef.current = createInitialState(selectedMap);
             setScreen("playing");
           }}
         />

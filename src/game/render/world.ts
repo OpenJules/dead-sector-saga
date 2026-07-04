@@ -1,5 +1,5 @@
 import type { GameState, Station, NPC, Vec } from "../types";
-import { WORLD_W, WORLD_H } from "../constants";
+import { WORLD_W, WORLD_H, getWorldWidth, getWorldHeight } from "../constants";
 import { drawCrate } from "./effects";
 
 export function drawStation(ctx: CanvasRenderingContext2D, st: Station, s: GameState) {
@@ -37,7 +37,9 @@ export function drawNpc(ctx: CanvasRenderingContext2D, n: NPC) {
 
 export function drawGate(ctx: CanvasRenderingContext2D, s: GameState) {
   const p = s.gate;
-  const ready = s.mainQuest.slice(0, 4).every((q) => q.done);
+  const gateStep = s.mainQuest.find(q => q.id === "m5");
+  const ready = gateStep ? s.mainQuest.slice(0, s.mainQuest.indexOf(gateStep)).every((q) => q.done) : false;
+  
   ctx.save();
   ctx.translate(p.x, p.y);
   ctx.rotate(s.time * 0.4);
@@ -51,17 +53,24 @@ export function drawGate(ctx: CanvasRenderingContext2D, s: GameState) {
   ctx.arc(0, 0, 38, 0, Math.PI * 1.4);
   ctx.stroke();
   ctx.restore();
+  
+  const gateLabel = s.selectedMap === "hospital" ? "OPERATING THEATER" : "UNDERWORLD GATE";
   ctx.fillStyle = ready ? "#ff8080" : "#888";
   ctx.font = "bold 12px 'JetBrains Mono', monospace";
   ctx.textAlign = "center";
-  ctx.fillText("UNDERWORLD GATE", p.x, p.y + 74);
+  ctx.fillText(gateLabel, p.x, p.y + 74);
 }
 
 export function drawWorldMarkers(ctx: CanvasRenderingContext2D, s: GameState) {
+  const worldW = getWorldWidth(s.selectedMap);
+  const worldH = getWorldHeight(s.selectedMap);
+  
   // outer border
-  ctx.strokeStyle = "rgba(180,110,60,0.4)";
+  ctx.strokeStyle = s.selectedMap === "hospital" 
+    ? "rgba(100,100,150,0.4)" 
+    : "rgba(180,110,60,0.4)";
   ctx.lineWidth = 4;
-  ctx.strokeRect(40, 40, WORLD_W - 80, WORLD_H - 80);
+  ctx.strokeRect(40, 40, worldW - 80, worldH - 80);
 
   // Quest markers
   for (let i = 0; i < s.mainQuest.length; i++) {
@@ -74,9 +83,42 @@ export function drawWorldMarkers(ctx: CanvasRenderingContext2D, s: GameState) {
     if (!sq.accepted || sq.done) continue;
     for (const st of sq.steps) {
       if (st.done || !(st.type === "reach" || (st.type === "kill" && st.location))) continue;
-      if (sq.id === "sq_supply") drawCrate(ctx, st.location!);
+      if (sq.id === "sq_supply" || sq.id === "sq_supplies") drawCrate(ctx, st.location!);
       else drawMarker(ctx, st.location!, "#8bff6a", "?");
     }
+  }
+  
+  // Draw vault for hospital map
+  if (s.selectedMap === "hospital") {
+    const vaultPos = { x: 300, y: 300 };
+    const vaultQuest = s.sideQuests.find(q => q.id === "sq_labvault");
+    const allKeysFound = s.labKeysFound >= 3;
+    
+    ctx.save();
+    ctx.translate(vaultPos.x, vaultPos.y);
+    
+    // Vault door
+    ctx.fillStyle = allKeysFound ? "#4a6a4a" : "#3a3a4a";
+    ctx.fillRect(-40, -30, 80, 60);
+    
+    // Border
+    ctx.strokeStyle = allKeysFound ? "#6a8a6a" : "#5a5a6a";
+    ctx.lineWidth = 3;
+    ctx.strokeRect(-40, -30, 80, 60);
+    
+    // Lock indicator
+    ctx.fillStyle = allKeysFound ? "#00ff00" : "#ff0000";
+    ctx.beginPath();
+    ctx.arc(25, 0, 8, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Label
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 10px 'JetBrains Mono', monospace";
+    ctx.textAlign = "center";
+    ctx.fillText("VAULT", 0, 5);
+    
+    ctx.restore();
   }
 }
 

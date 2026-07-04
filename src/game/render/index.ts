@@ -4,10 +4,12 @@ import { drawGround, drawArena } from "./ground";
 import { drawPlayer, drawZombie, drawBoss } from "./entities";
 import { drawStation, drawGate, drawWorldMarkers, drawNpc } from "./world";
 import { drawCrate } from "./effects";
+import { drawFlashlight, drawGenerator } from "./flashlight";
+import { drawHiveMind } from "../systems/hivemind";
 
 export function render(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, s: GameState) {
   const cam = s.camera;
-  ctx.fillStyle = s.inArena ? "#120608" : "#1a1310";
+  ctx.fillStyle = s.inArena ? "#120608" : (s.selectedMap === "hospital" ? "#0a0a0f" : "#1a1310");
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   ctx.save();
@@ -19,11 +21,18 @@ export function render(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement,
   else drawWorldMarkers(ctx, s);
 
   if (s.inArena) {
-    const cratePos = { x: 1200, y: 900 };
+    const worldW = s.selectedMap === "hospital" ? 2000 : 2400;
+    const worldH = s.selectedMap === "hospital" ? 1600 : 1800;
+    const cratePos = { x: worldW / 2, y: worldH / 2 };
     drawCrate(ctx, cratePos);
   }
 
   if (!s.inArena) {
+    // Draw generator if hospital map
+    if (s.selectedMap === "hospital" && s.generator) {
+      drawGenerator(ctx, s);
+    }
+    
     for (const st of s.stations) drawStation(ctx, st, s);
     for (const obj of s.worldObjects) {
       const sq = s.sideQuests.find((q) => q.id === obj.questId);
@@ -55,9 +64,9 @@ export function render(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement,
     }
   }
 
-  // Draw Hold Progress for Outpost Radio
+  // Draw Hold Progress for first quest (if it's a reach quest with location)
   const firstStep = s.mainQuest[0];
-  if (!firstStep.done && !s.inArena && firstStep.location) {
+  if (!firstStep.done && !s.inArena && firstStep.location && firstStep.type === "reach") {
     const loc = firstStep.location;
     ctx.beginPath();
     ctx.strokeStyle = "rgba(232, 197, 106, 0.5)";
@@ -70,7 +79,13 @@ export function render(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement,
 
   for (const z of s.zombies) drawZombie(ctx, z);
 
-  if (s.boss && s.inArena) drawBoss(ctx, s.boss);
+  if (s.boss && s.inArena) {
+    if (s.boss.type === "hivemind") {
+      drawHiveMind(ctx, s.boss as any);
+    } else {
+      drawBoss(ctx, s.boss);
+    }
+  }
 
   // Bullets
   for (const b of s.bullets) {
@@ -112,4 +127,9 @@ export function render(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement,
   g.addColorStop(1, "rgba(0,0,0,0.7)");
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
+  
+  // Draw flashlight overlay (after vignette for proper layering)
+  if (s.selectedMap === "hospital" && !s.powerOn && s.flashlightOn) {
+    drawFlashlight(ctx, canvas, s);
+  }
 }

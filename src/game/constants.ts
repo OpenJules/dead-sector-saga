@@ -1,6 +1,25 @@
-import type { Weapon, QuestStep, SideQuest } from "./types";
+import type { Weapon, QuestStep, SideQuest, MapId } from "./types";
+import { OUTPOST_MAP } from "./maps/outpost";
+import { HOSPITAL_MAP } from "./maps/hospital";
 
-// ---------- World Dimensions ----------
+// ---------- Map Helpers ----------
+export function getWorldWidth(mapId: MapId): number {
+  return mapId === "hospital" ? HOSPITAL_MAP.worldWidth : OUTPOST_MAP.worldWidth;
+}
+
+export function getWorldHeight(mapId: MapId): number {
+  return mapId === "hospital" ? HOSPITAL_MAP.worldHeight : OUTPOST_MAP.worldHeight;
+}
+
+export function getArenaWidth(mapId: MapId): number {
+  return mapId === "hospital" ? HOSPITAL_MAP.arenaWidth : OUTPOST_MAP.arenaWidth;
+}
+
+export function getArenaHeight(mapId: MapId): number {
+  return mapId === "hospital" ? HOSPITAL_MAP.arenaHeight : OUTPOST_MAP.arenaHeight;
+}
+
+// ---------- World Dimensions (Outpost defaults for backward compatibility) ----------
 export const WORLD_W = 2400;
 export const WORLD_H = 1800;
 export const ARENA_W = 1200;

@@ -1,5 +1,5 @@
 import type { GameState } from "../types";
-import { WORLD_W, WORLD_H, ARENA_W, ARENA_H, PLAYER_SPEED, PLAYER_RADIUS } from "../constants";
+import { WORLD_W, WORLD_H, ARENA_W, ARENA_H, PLAYER_SPEED, PLAYER_RADIUS, getWorldWidth, getWorldHeight, getArenaWidth, getArenaHeight } from "../constants";
 import { clamp } from "../utils";
 import { audio } from "../AudioEngine";
 
@@ -14,14 +14,19 @@ export function updatePlayer(s: GameState, dt: number) {
   s.player.pos.x += (mv.x / len) * speed * dt;
   s.player.pos.y += (mv.y / len) * speed * dt;
 
+  const worldW = getWorldWidth(s.selectedMap);
+  const worldH = getWorldHeight(s.selectedMap);
+  const arenaW = getArenaWidth(s.selectedMap);
+  const arenaH = getArenaHeight(s.selectedMap);
+  
   const bounds = s.inArena
     ? {
-        minX: (WORLD_W - ARENA_W) / 2,
-        minY: (WORLD_H - ARENA_H) / 2,
-        maxX: (WORLD_W + ARENA_W) / 2,
-        maxY: (WORLD_H + ARENA_H) / 2,
+        minX: (worldW - arenaW) / 2,
+        minY: (worldH - arenaH) / 2,
+        maxX: (worldW + arenaW) / 2,
+        maxY: (worldH + arenaH) / 2,
       }
-    : { minX: 40, minY: 40, maxX: WORLD_W - 40, maxY: WORLD_H - 40 };
+    : { minX: 40, minY: 40, maxX: worldW - 40, maxY: worldH - 40 };
   s.player.pos.x = clamp(s.player.pos.x, bounds.minX + PLAYER_RADIUS, bounds.maxX - PLAYER_RADIUS);
   s.player.pos.y = clamp(s.player.pos.y, bounds.minY + PLAYER_RADIUS, bounds.maxY - PLAYER_RADIUS);
 

@@ -1,5 +1,5 @@
 import type { GameState, Zombie, ZombieKind } from "../types";
-import { WORLD_W, PLAYER_RADIUS } from "../constants";
+import { WORLD_W, PLAYER_RADIUS, getWorldWidth, getWorldHeight } from "../constants";
 import { rand } from "../utils";
 import { spark } from "./particles";
 import { audio } from "../AudioEngine";
@@ -8,9 +8,12 @@ export function spawnZombie(s: GameState) {
   const cam = s.camera;
   const cw = s.canvasWidth;
   const ch = s.canvasHeight;
+  const worldW = getWorldWidth(s.selectedMap);
+  const worldH = getWorldHeight(s.selectedMap);
+  
   let pos = { x: 0, y: 0 };
   for (let tries = 0; tries < 20; tries++) {
-    pos = { x: rand(60, WORLD_W - 60), y: rand(60, WORLD_W - 60) };
+    pos = { x: rand(60, worldW - 60), y: rand(60, worldH - 60) };
     const sx = pos.x - cam.x,
       sy = pos.y - cam.y;
     if (sx < -50 || sx > cw + 50 || sy < -50 || sy > ch + 50) break;

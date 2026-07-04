@@ -81,6 +81,8 @@ export type NPC = {
 
 export type Phase = 0 | 1 | 2 | 3;
 
+export type BossType = "harvester" | "hivemind";
+
 export type Boss = {
   pos: Vec;
   hp: number;
@@ -91,6 +93,7 @@ export type Boss = {
   target: Vec;
   radius: number;
   invulnTimer: number;
+  type?: BossType;
 };
 
 export type Particle = {
@@ -106,9 +109,53 @@ export type Toast = {
 };
 
 export type InteractTarget = {
-  kind: "station" | "npc" | "gate" | "worldobject" | "ammo-crate";
+  kind: "station" | "npc" | "gate" | "worldobject" | "ammo-crate" | "generator";
   ref: unknown;
 } | null;
+
+export type MapId = "outpost" | "hospital";
+
+export type MapConfig = {
+  id: MapId;
+  name: string;
+  description: string;
+  worldWidth: number;
+  worldHeight: number;
+  arenaWidth: number;
+  arenaHeight: number;
+  playerStart: Vec;
+  backgroundColor: string;
+  gridColor: string;
+  hasDarkness: boolean;
+  hasFlashlight: boolean;
+  hasGenerator: boolean;
+  generatorPos?: Vec;
+  stations: { wx: string; x: number; y: number; label: string }[];
+  worldObjects: { pos: Vec; color: string; radius: number; questId: string; stepId: string }[];
+  mainQuest: QuestStep[];
+  sideQuests: SideQuest[];
+  gatePos: Vec;
+  bossType: "harvester" | "hivemind";
+  bossHp: number;
+  bossRadius: number;
+  easterEggType: "rgb" | "labvault";
+};
+
+export type Generator = {
+  pos: Vec;
+  active: boolean;
+  interacted: boolean;
+};
+
+export type HiveMindBoss = Boss & {
+  type: "hivemind";
+  spawnTimer: number;
+  spawnCooldown: number;
+  maxMinions: number;
+  exposed: boolean;
+  exposeTimer: number;
+  exposeCooldown: number;
+};
 
 export type GameState = {
   keys: Record<string, boolean>;
@@ -151,4 +198,10 @@ export type GameState = {
   holdTimer: number;
   canvasWidth: number;
   canvasHeight: number;
+  selectedMap: MapId;
+  powerOn: boolean;
+  flashlightOn: boolean;
+  generator: Generator | null;
+  labKeysFound: number;
+  easterEggType: "rgb" | "labvault";
 };

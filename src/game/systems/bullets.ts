@@ -1,5 +1,5 @@
 import type { GameState } from "../types";
-import { WORLD_W, PLAYER_RADIUS } from "../constants";
+import { WORLD_W, PLAYER_RADIUS, getWorldWidth, getWorldHeight } from "../constants";
 import { dist } from "../utils";
 import { spark } from "./particles";
 import { audio } from "../AudioEngine";
@@ -49,12 +49,14 @@ export function updateBullets(s: GameState, dt: number) {
   }
 
   // Cull off-screen bullets
+  const worldW = getWorldWidth(s.selectedMap);
+  const worldH = getWorldHeight(s.selectedMap);
   s.bullets = s.bullets.filter(
     (b) =>
       b.life > 0 &&
       b.pos.x > -50 &&
-      b.pos.x < WORLD_W + 50 &&
+      b.pos.x < worldW + 50 &&
       b.pos.y > -50 &&
-      b.pos.y < WORLD_W + 50,
+      b.pos.y < worldH + 50,
   );
 }

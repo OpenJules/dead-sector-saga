@@ -1,23 +1,33 @@
 import type { GameState, Phase } from "../types";
-import { WORLD_W, WORLD_H, ARENA_W, ARENA_H } from "../constants";
+import { WORLD_W, WORLD_H, ARENA_W, ARENA_H, getWorldWidth, getWorldHeight, getArenaWidth, getArenaHeight } from "../constants";
 import { rand } from "../utils";
 import { pushToast } from "../utils";
 import { audio } from "../AudioEngine";
+import { enterHospitalArena, updateHiveMind } from "./hivemind";
 
 export function enterArena(s: GameState) {
+  // Use hospital arena for hospital map
+  if (s.selectedMap === "hospital") {
+    enterHospitalArena(s);
+    return;
+  }
+  
+  const worldW = getWorldWidth(s.selectedMap);
+  const worldH = getWorldHeight(s.selectedMap);
+  
   s.inArena = true;
   s.zombies = [];
   s.bullets = [];
-  s.player.pos = { x: WORLD_W / 2, y: WORLD_H / 2 + 300 };
+  s.player.pos = { x: worldW / 2, y: worldH / 2 + 300 };
   s.player.hp = Math.max(s.player.hp, 80);
   s.boss = {
-    pos: { x: WORLD_W / 2, y: WORLD_H / 2 - 250 },
+    pos: { x: worldW / 2, y: worldH / 2 - 250 },
     hp: 1500,
     maxHp: 1500,
     phase: 1,
     attackTimer: 1.5,
     moveTimer: 0,
-    target: { x: WORLD_W / 2, y: WORLD_H / 2 - 200 },
+    target: { x: worldW / 2, y: worldH / 2 - 200 },
     radius: 46,
     invulnTimer: 0.6,
   };
@@ -26,6 +36,12 @@ export function enterArena(s: GameState) {
 }
 
 export function updateBoss(s: GameState, dt: number) {
+  // Handle Hive Mind boss
+  if (s.boss && s.boss.type === "hivemind") {
+    updateHiveMind(s, dt);
+    return;
+  }
+  
   const b = s.boss!;
   b.invulnTimer = Math.max(0, b.invulnTimer - dt);
   const p = b.hp / b.maxHp;
@@ -42,13 +58,18 @@ export function updateBoss(s: GameState, dt: number) {
     return;
   }
 
+  const worldW = getWorldWidth(s.selectedMap);
+  const worldH = getWorldHeight(s.selectedMap);
+  const arenaW = getArenaWidth(s.selectedMap);
+  const arenaH = getArenaHeight(s.selectedMap);
+  
   // Movement
   b.moveTimer -= dt;
   if (b.moveTimer <= 0) {
     b.moveTimer = rand(1.5, 3);
     b.target = {
-      x: (WORLD_W - ARENA_W) / 2 + rand(150, ARENA_W - 150),
-      y: (WORLD_H - ARENA_H) / 2 + rand(120, ARENA_H / 2),
+      x: (worldW - arenaW) / 2 + rand(150, arenaW - 150),
+      y: (worldH - arenaH) / 2 + rand(120, arenaH / 2),
     };
   }
   const dx = b.target.x - b.pos.x,

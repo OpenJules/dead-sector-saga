@@ -62,6 +62,30 @@ export function HUD({ s }: { s: GameState }) {
               </span>
             ))}
           </div>
+          
+          {/* Hospital map status indicators */}
+          {s.selectedMap === "hospital" && (
+            <div className="mt-2 border-t border-border pt-2">
+              <div className="text-xs">
+                <span className="text-muted-foreground">POWER:</span>{" "}
+                <span className={s.powerOn ? "text-green-400" : "text-red-400"}>
+                  {s.powerOn ? "ON" : "OFF"}
+                </span>
+              </div>
+              {s.flashlightOn && (
+                <div className="text-xs">
+                  <span className="text-muted-foreground">FLASHLIGHT:</span>{" "}
+                  <span className="text-blue-400">ON</span>
+                </div>
+              )}
+              {s.labKeysFound > 0 && (
+                <div className="text-xs">
+                  <span className="text-muted-foreground">LAB KEYS:</span>{" "}
+                  <span className="text-cyan-400">{s.labKeysFound}/3</span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Center: Round Counter + Timer */}
@@ -122,7 +146,7 @@ export function HUD({ s }: { s: GameState }) {
       {s.inArena && s.boss && (
         <div className="absolute bottom-4 left-1/2 w-[520px] -translate-x-1/2">
           <div className="mb-1 text-center text-xs uppercase tracking-widest text-accent">
-            THE HARVESTER — Phase {s.boss.phase}/3
+            {s.boss.type === "hivemind" ? "THE HIVE MIND" : "THE HARVESTER"} — Phase {s.boss.phase}/3
           </div>
           <div className="h-4 overflow-hidden rounded-sm border border-accent bg-background">
             <div

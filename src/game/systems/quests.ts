@@ -1,14 +1,17 @@
 import type { GameState } from "../types";
 import { dist, pushToast, refillAmmo, makeSlot, rand } from "../utils";
-import { PLAYER_RADIUS, WORLD_W } from "../constants";
+import { PLAYER_RADIUS, WORLD_W, getWorldWidth, getWorldHeight } from "../constants";
 import { audio } from "../AudioEngine";
 import { enterArena } from "./boss";
 import { spawnZombie } from "./zombies";
 import { spark } from "./particles";
+import { tryInteractGenerator, getGeneratorInteractHint } from "./generator";
+import { tryInteractLabVault, tryPickupLabKey, getLabVaultInteractHint, getLabKeyInteractHint } from "./labvault";
 
 export function updateInteractHint(s: GameState) {
   s.interactHint = "";
   s.interactTarget = null;
+  
   if (s.inArena) {
     for (const st of s.stations) {
       if (dist(s.player.pos, st.pos) < 60) {
@@ -20,22 +23,56 @@ export function updateInteractHint(s: GameState) {
         break;
       }
     }
-    if (!s.interactTarget && dist(s.player.pos, { x: 1200, y: 900 }) < 60) {
-      s.interactHint = "Ammo Refill Crate";
-      s.interactTarget = { kind: "ammo-crate", ref: null };
-    }
-  } else {
-    for (const st of s.stations) {
-      if (dist(s.player.pos, st.pos) < 60) {
-        const owned = s.player.inventory.some((slot) => slot.weapon.id === st.weapon.id);
-        s.interactHint = owned
-          ? `${st.weapon.name} owned — refill ammo`
-          : `Buy ${st.weapon.name} — $${st.weapon.cost}`;
-        s.interactTarget = { kind: "station", ref: st };
-        break;
+    if (!s.interactTarget) {
+      const worldW = getWorldWidth(s.selectedMap);
+      const worldH = getWorldHeight(s.selectedMap);
+      if (dist(s.player.pos, { x: worldW / 2, y: worldH / 2 }) < 60) {
+        s.interactHint = "Ammo Refill Crate";
+        s.interactTarget = { kind: "ammo-crate", ref: null };
       }
     }
-    if (!s.interactTarget)
+  } else {
+    // Check generator first (hospital map)
+    if (s.selectedMap === "hospital" && s.generator && !s.powerOn) {
+      const genHint = getGeneratorInteractHint(s);
+      if (genHint) {
+        s.interactHint = genHint;
+        s.interactTarget = { kind: "generator", ref: s.generator };
+      }
+    }
+    
+    // Check lab keys (hospital map)
+    if (!s.interactTarget && s.selectedMap === "hospital") {
+      const keyHint = getLabKeyInteractHint(s);
+      if (keyHint) {
+        s.interactHint = keyHint;
+        s.interactTarget = { kind: "worldobject", ref: null };
+      }
+    }
+    
+    // Check vault (hospital map)
+    if (!s.interactTarget && s.selectedMap === "hospital") {
+      const vaultHint = getLabVaultInteractHint(s);
+      if (vaultHint) {
+        s.interactHint = vaultHint;
+        s.interactTarget = { kind: "worldobject", ref: null };
+      }
+    }
+    
+    if (!s.interactTarget) {
+      for (const st of s.stations) {
+        if (dist(s.player.pos, st.pos) < 60) {
+          const owned = s.player.inventory.some((slot) => slot.weapon.id === st.weapon.id);
+          s.interactHint = owned
+            ? `${st.weapon.name} owned — refill ammo`
+            : `Buy ${st.weapon.name} — $${st.weapon.cost}`;
+          s.interactTarget = { kind: "station", ref: st };
+          break;
+        }
+      }
+    }
+    
+    if (!s.interactTarget) {
       for (const n of s.npcs) {
         if (dist(s.player.pos, n.pos) < 55) {
           s.interactHint = `${n.name}: "Greetings"`;
@@ -43,13 +80,19 @@ export function updateInteractHint(s: GameState) {
           break;
         }
       }
+    }
+    
     if (!s.interactTarget && dist(s.player.pos, s.gate) < 70) {
-      const step = s.mainQuest[4];
-      if (step && !step.done && s.mainQuest.slice(0, 4).every((q) => q.done)) {
-        s.interactHint = "Enter the Underworld Gate";
-        s.interactTarget = { kind: "gate", ref: null };
-      } else {
-        s.interactHint = "Underworld Gate — sealed";
+      const gateStep = s.mainQuest.find(q => q.id === "m5");
+      if (gateStep && !gateStep.done) {
+        // Check if previous steps are done
+        const prevStepsDone = s.mainQuest.slice(0, s.mainQuest.indexOf(gateStep)).every(q => q.done);
+        if (prevStepsDone) {
+          s.interactHint = "Enter the Boss Arena";
+          s.interactTarget = { kind: "gate", ref: null };
+        } else {
+          s.interactHint = "Gate — sealed";
+        }
       }
     }
   }
@@ -58,9 +101,40 @@ export function updateInteractHint(s: GameState) {
 export function tryInteract(s: GameState, forceUi: () => void) {
   if (!s.interactTarget) return;
   const t = s.interactTarget;
+  
+  if (t.kind === "generator") {
+    tryInteractGenerator(s);
+    forceUi();
+    return;
+  }
+  
+  if (t.kind === "worldobject") {
+    // Try lab key pickup
+    if (s.selectedMap === "hospital") {
+      const keys = [
+        { pos: { x: 300, y: 1300 }, stepId: "k1" },
+        { pos: { x: 1700, y: 1300 }, stepId: "k2" },
+        { pos: { x: 300, y: 300 }, stepId: "k3" },
+      ];
+      
+      for (let i = 0; i < keys.length; i++) {
+        if (tryPickupLabKey(s, i)) {
+          forceUi();
+          return;
+        }
+      }
+      
+      // Try vault interaction
+      if (tryInteractLabVault(s)) {
+        forceUi();
+        return;
+      }
+    }
+  }
+  
   if (t.kind === "station") {
     const st = t.ref as {
-      weapon: { id: string; cost: number; magSize: number; reserveMax: number };
+      weapon: { id: string; name: string; cost: number; magSize: number; reserveMax: number };
       label: string;
       pos: { x: number; y: number };
     };
@@ -106,6 +180,9 @@ export function tryInteract(s: GameState, forceUi: () => void) {
       if (sq.reward === "MAX_RESOURCES") {
         s.player.hp = s.player.maxHp;
         pushToast(s, `Reward: Max Health & Ammo!`);
+      } else if (sq.reward === "PROTOTYPE_WEAPONS") {
+        // Already handled by lab vault
+        pushToast(s, `Vault opened!`);
       } else {
         const amount = typeof sq.reward === "number" ? sq.reward : 0;
         s.player.cash += amount;
@@ -114,10 +191,13 @@ export function tryInteract(s: GameState, forceUi: () => void) {
       audio.playInteract();
     }
   } else if (t.kind === "gate") {
-    const step = s.mainQuest[4];
-    if (step && !step.done && s.mainQuest.slice(0, 4).every((q) => q.done)) {
-      step.done = true;
-      enterArena(s);
+    const gateStep = s.mainQuest.find(q => q.id === "m5");
+    if (gateStep && !gateStep.done) {
+      const prevStepsDone = s.mainQuest.slice(0, s.mainQuest.indexOf(gateStep)).every(q => q.done);
+      if (prevStepsDone) {
+        gateStep.done = true;
+        enterArena(s);
+      }
     }
   } else if (t.kind === "ammo-crate") {
     refillAmmo(s, 1.0);
@@ -132,9 +212,16 @@ export function updateReachQuests(s: GameState) {
     if (q.done || q.type !== "reach" || !q.location) continue;
     const idx = s.mainQuest.indexOf(q);
     if (idx > 0 && !s.mainQuest[idx - 1].done) continue;
-    if (idx === 4) continue; // gate handled via interact
+    if (q.id === "m5") continue; // gate handled via interact
 
-    if (idx === 0) {
+    // For hospital map, skip hold timer logic for non-first quests
+    if (s.selectedMap === "hospital" && idx === 0) {
+      // Hospital first quest is just reach, no hold timer
+      if (dist(s.player.pos, q.location) < 55) {
+        q.done = true;
+        pushToast(s, "Main step complete");
+      }
+    } else if (idx === 0 && s.selectedMap === "outpost") {
       if (dist(s.player.pos, q.location) < 55) {
         s.holdTimer += 0.016; // approx 60fps dt
         if (s.holdTimer >= 10) {
@@ -150,6 +237,22 @@ export function updateReachQuests(s: GameState) {
       pushToast(s, "Main step complete");
     }
   }
+  
+  // Handle interact-type quests (like "Turn on Power" in hospital)
+  for (const q of s.mainQuest) {
+    if (q.done || q.type !== "interact") continue;
+    const idx = s.mainQuest.indexOf(q);
+    if (idx > 0 && !s.mainQuest[idx - 1].done) continue;
+    
+    // Power quest is handled by generator system
+    if (q.id === "m2" && s.selectedMap === "hospital") {
+      if (s.powerOn) {
+        q.done = true;
+        pushToast(s, "Main step complete");
+      }
+    }
+  }
+  
   for (const sq of s.sideQuests) {
     if (!sq.accepted || sq.done) continue;
     for (const st of sq.steps) {
@@ -158,7 +261,7 @@ export function updateReachQuests(s: GameState) {
         pushToast(s, `${sq.title}: objective complete`);
       }
     }
-    if (sq.id === "sq_supply" && !sq.done && sq.steps.every((x) => x.done)) {
+    if ((sq.id === "sq_supply" || sq.id === "sq_supplies") && !sq.done && sq.steps.every((x) => x.done)) {
       sq.done = true;
       const amount = typeof sq.reward === "number" ? sq.reward : 0;
       s.player.cash += amount;
@@ -227,6 +330,9 @@ export function updateKillQuests(s: GameState) {
 }
 
 export function updateRGBQuest(s: GameState) {
+  // Only update RGB quest for outpost map
+  if (s.selectedMap !== "outpost") return;
+  
   for (const b of s.bullets) {
     if (!b.friendly) continue;
     for (const obj of s.worldObjects) {

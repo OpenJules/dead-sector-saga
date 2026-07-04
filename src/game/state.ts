@@ -1,18 +1,13 @@
-import type { GameState } from "./types";
-import {
-  WORLD_W,
-  WORLD_H,
-  WEAPONS,
-  MAIN_QUEST,
-  SIDE_QUESTS,
-  STATION_LAYOUT,
-  WORLD_OBJECT_LAYOUT,
-} from "./constants";
+import type { GameState, MapId } from "./types";
+import { WEAPONS } from "./constants";
+import { getMapConfig } from "./maps";
 import { makeSlot } from "./utils";
 
-export function createInitialState(): GameState {
+export function createInitialState(mapId: MapId = "outpost"): GameState {
+  const map = getMapConfig(mapId);
+  
   const player = {
-    pos: { x: WORLD_W / 2 - 300, y: WORLD_H / 2 },
+    pos: { x: map.playerStart.x, y: map.playerStart.y },
     hp: 100,
     maxHp: 100,
     cash: 150,
@@ -32,21 +27,21 @@ export function createInitialState(): GameState {
     bullets: [],
     zombies: [],
     particles: [],
-    stations: STATION_LAYOUT.map((s) => ({
+    stations: map.stations.map((s) => ({
       pos: { x: s.x, y: s.y },
       weapon: WEAPONS[s.wx],
       label: s.label,
     })),
     npcs: [],
-    worldObjects: WORLD_OBJECT_LAYOUT.map((o) => ({
+    worldObjects: map.worldObjects.map((o) => ({
       ...o,
       pos: { ...o.pos },
       active: true,
       locked: false,
     })),
-    gate: { x: WORLD_W / 2, y: WORLD_H / 2 },
-    mainQuest: MAIN_QUEST.map((q) => ({ ...q })),
-    sideQuests: SIDE_QUESTS.map((q) => ({ ...q, steps: q.steps.map((s) => ({ ...s })) })),
+    gate: { x: map.gatePos.x, y: map.gatePos.y },
+    mainQuest: map.mainQuest.map((q) => ({ ...q })),
+    sideQuests: map.sideQuests.map((q) => ({ ...q, steps: q.steps.map((s) => ({ ...s })) })),
     mainIndex: 0,
     round: 1,
     zombiesToKill: 10,
@@ -63,5 +58,13 @@ export function createInitialState(): GameState {
     holdTimer: 0,
     canvasWidth: 1280,
     canvasHeight: 720,
+    selectedMap: mapId,
+    powerOn: !map.hasDarkness,
+    flashlightOn: map.hasFlashlight,
+    generator: map.hasGenerator && map.generatorPos
+      ? { pos: { x: map.generatorPos.x, y: map.generatorPos.y }, active: false, interacted: false }
+      : null,
+    labKeysFound: 0,
+    easterEggType: map.easterEggType,
   };
 }

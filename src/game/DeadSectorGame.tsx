@@ -724,8 +724,9 @@ function tryInteract(s: GameState, forceUi: () => void) {
         s.player.hp = s.player.maxHp;
         pushToast(s, `Reward: Max Health & Ammo!`);
       } else {
-        s.player.cash += sq.reward; 
-        pushToast(s, `+$${sq.reward} — ${sq.title} complete`);
+        const amount = typeof sq.reward === "number" ? sq.reward : 0;
+        s.player.cash += amount;
+        pushToast(s, `+$${amount} — ${sq.title} complete`);
       }
       audio.playInteract();
     }

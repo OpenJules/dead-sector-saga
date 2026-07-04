@@ -981,8 +981,40 @@ function drawWorldMarkers(ctx: CanvasRenderingContext2D, s: GameState) {
   }
   for (const sq of s.sideQuests) {
     if (!sq.accepted || sq.done) continue;
-    for (const st of sq.steps) if (!st.done && st.type === "reach" && st.location) drawMarker(ctx, st.location, "#8bff6a", "?");
+    for (const st of sq.steps) {
+      if (st.done || st.type !== "reach" || !st.location) continue;
+      if (sq.id === "sq_supply") drawCrate(ctx, st.location);
+      else drawMarker(ctx, st.location, "#8bff6a", "?");
+    }
   }
+}
+
+function drawCrate(ctx: CanvasRenderingContext2D, p: Vec) {
+  ctx.save();
+  ctx.translate(p.x, p.y);
+  // pulsing glow
+  const t = performance.now() / 400;
+  const glow = 0.4 + 0.3 * Math.sin(t);
+  ctx.shadowColor = "#e8a04a";
+  ctx.shadowBlur = 20 * glow;
+  // crate body
+  ctx.fillStyle = "#8a5a2b";
+  ctx.fillRect(-18, -18, 36, 36);
+  ctx.strokeStyle = "#e8a04a";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(-18, -18, 36, 36);
+  // metal bands
+  ctx.beginPath();
+  ctx.moveTo(-18, 0); ctx.lineTo(18, 0);
+  ctx.moveTo(0, -18); ctx.lineTo(0, 18);
+  ctx.stroke();
+  ctx.restore();
+  // pickup ring
+  ctx.strokeStyle = "rgba(232,160,74,0.35)";
+  ctx.lineWidth = 2;
+  ctx.setLineDash([4, 6]);
+  ctx.beginPath(); ctx.arc(p.x, p.y, 55, 0, Math.PI * 2); ctx.stroke();
+  ctx.setLineDash([]);
 }
 
 function drawMarker(ctx: CanvasRenderingContext2D, p: Vec, color: string, label: string) {

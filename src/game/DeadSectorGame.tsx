@@ -19,9 +19,9 @@ type Bullet = { pos: Vec; vel: Vec; damage: number; life: number; friendly: bool
 type Zombie = { pos: Vec; hp: number; maxHp: number; speed: number; damage: number; radius: number; kind: "walker" | "runner" | "brute" };
 type Station = { pos: Vec; weapon: Weapon; label: string };
 type QuestStep = { id: string; text: string; type: "kill" | "reach" | "buy" | "interact" | "shoot"; target?: number; progress?: number; location?: Vec; done: boolean; color?: string };
-type SideQuest = { id: string; title: string; steps: QuestStep[]; reward: string; done: boolean; accepted: boolean };
+type SideQuest = { id: string; title: string; steps: QuestStep[]; reward: number | string; done: boolean; accepted: boolean };
 type WorldObject = { pos: Vec; color: string; radius: number; questId: string; stepId: string; active: boolean; locked: boolean };
-type NPC = { pos: Vec; name: string; color: string; radius: number };
+type NPC = { pos: Vec; name: string; color: string; radius: number; sideQuestId?: string };
 type Phase = 0 | 1 | 2 | 3;
 type Boss = {
   pos: Vec;

@@ -1136,17 +1136,17 @@ function drawWorldMarkers(ctx: CanvasRenderingContext2D, s: GameState) {
   ctx.lineWidth = 4;
   ctx.strokeRect(40, 40, WORLD_W - 80, WORLD_H - 80);
 
-  // Quest markers (only current uncompleted reach steps)
+  // Quest markers (current uncompleted reach/kill steps with locations)
   for (let i = 0; i < s.mainQuest.length; i++) {
     const q = s.mainQuest[i];
-    if (q.done || q.type !== "reach" || !q.location) continue;
+    if (q.done || !(q.type === "reach" || (q.type === "kill" && q.location))) continue;
     if (i > 0 && !s.mainQuest[i - 1].done) continue;
     drawMarker(ctx, q.location, "#e8c56a", "!");
   }
   for (const sq of s.sideQuests) {
     if (!sq.accepted || sq.done) continue;
     for (const st of sq.steps) {
-      if (st.done || st.type !== "reach" || !st.location) continue;
+      if (st.done || !(st.type === "reach" || (st.type === "kill" && st.location))) continue;
       if (sq.id === "sq_supply") drawCrate(ctx, st.location);
       else drawMarker(ctx, st.location, "#8bff6a", "?");
     }

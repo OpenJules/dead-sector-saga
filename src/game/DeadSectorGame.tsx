@@ -55,13 +55,13 @@ const WEAPONS: Record<string, Weapon> = {
   plasma:   { id: "plasma",   name: "Toxin Blaster", damage: 40, fireRate: 180, bulletSpeed: 820, spread: 0.06, bulletsPerShot: 1, cost: 2500, color: "#8bff6a", magSize: 20, reserveMax: 80,  reloadTime: 1.8 },
 };
 
-const MAIN_QUEST: QuestStep[] = [
-  { id: "m1", text: "Reach the Outpost Radio (NW)", type: "reach", location: { x: 300, y: 300 }, done: false },
-  { id: "m2", text: "Purge the horde: kill 15 zombies", type: "kill", target: 15, progress: 0, done: false },
-  { id: "m3", text: "Buy a new weapon at any station", type: "buy", done: false },
-  { id: "m4", text: "Recover the Sector Key (SE ruin)", type: "reach", location: { x: 2050, y: 1500 }, done: false },
-  { id: "m5", text: "Enter the Underworld Gate (center)", type: "reach", location: { x: WORLD_W / 2, y: WORLD_H / 2 }, done: false },
-];
+  const MAIN_QUEST: QuestStep[] = [
+    { id: "m1", text: "Reach the Outpost Radio (NW)", type: "reach", location: { x: 300, y: 300 }, done: false },
+    { id: "m2", text: "Purge the horde: kill 15 zombies", type: "kill", target: 15, progress: 0, done: false },
+    { id: "m3", text: "Buy a new weapon at any station", type: "buy", done: false },
+    { id: "m4", text: "Slay 7 zombies near the Sector Key (SE ruin)", type: "kill", target: 7, progress: 0, location: { x: 2050, y: 1500 }, done: false },
+    { id: "m5", text: "Enter the Underworld Gate (center)", type: "reach", location: { x: WORLD_W / 2, y: WORLD_H / 2 }, done: false },
+  ];
 
 const SIDE_QUESTS: SideQuest[] = [
   {
@@ -623,11 +623,20 @@ function update(s: GameState, dt: number) {
       for (const sq of s.sideQuests) {
         if (!sq.accepted || sq.done) continue;
         for (const st of sq.steps) {
-          if (st.done || st.type !== "kill") continue;
-          if (sq.id === "sq1" && z.kind !== "runner") continue;
-          if (sq.id === "sq3" && z.kind !== "brute") continue;
-          st.progress = (st.progress ?? 0) + 1;
-          if (st.progress >= (st.target ?? 0)) { st.done = true; pushToast(s, `${sq.title}: objective complete`); }
+          if (st.done) continue;
+          if (st.type === "kill") {
+            if (st.location) {
+              if (dist(z.pos, st.location) < 200) {
+                st.progress = (st.progress ?? 0) + 1;
+                if (st.progress >= (st.target ?? 0)) { st.done = true; pushToast(s, `${sq.title}: objective complete`); }
+              }
+            } else {
+              if (sq.id === "sq1" && z.kind !== "runner") continue;
+              if (sq.id === "sq3" && z.kind !== "brute") continue;
+              st.progress = (st.progress ?? 0) + 1;
+              if (st.progress >= (st.target ?? 0)) { st.done = true; pushToast(s, `${sq.title}: objective complete`); }
+            }
+          }
         }
       }
     } else remaining.push(z);
@@ -1024,6 +1033,10 @@ function render(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, s: Gam
       ctx.restore();
     }
   }
+
+  // Draw Altar for the Easter Egg
+  // Removed Altar as it's no longer needed for the quest
+  // (Empty)
 
 
   // Gate

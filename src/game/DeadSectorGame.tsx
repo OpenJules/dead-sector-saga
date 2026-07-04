@@ -253,10 +253,11 @@ export default function DeadSectorGame() {
         </div>
       </div>
 
-      {/* Center: Round Counter */}
+      {/* Center: Round Counter + Timer */}
       <div className="absolute top-4 left-1/2 -translate-x-1/2 text-center">
         <div className="text-4xl font-bold text-accent tracking-tighter italic">ROUND {s.round}</div>
         <div className="text-xs text-muted-foreground">KILLS: {s.killedInRound}/{s.zombiesToKill}</div>
+        <div className="mt-1 font-mono text-lg tabular-nums text-hud">{formatTime(s.time)}</div>
       </div>
 
       {/* Right: Quests */}
